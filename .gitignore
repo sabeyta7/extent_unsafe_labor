@@ -1,0 +1,20 @@
+# Ignore everything by default
+*
+
+# But don't ignore directories
+!*/
+
+# Don't ignore code files
+!code/
+!code/extent_unsafe_labor.R
+!code/functions.R
+
+# Ignore all data files (download from Zenodo)
+data/*
+
+# Keep the data folder structure
+!data/.gitkeep
+
+# Don't ignore project files
+!.gitignore
+!README.md
