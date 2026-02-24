@@ -8,6 +8,7 @@
 !code/
 !code/extent_unsafe_labor.R
 !code/functions.R
+!code/sensitivity.R
 
 # Ignore all data files (download from Zenodo)
 data/*

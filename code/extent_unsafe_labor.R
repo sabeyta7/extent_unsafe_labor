@@ -39,8 +39,8 @@ source(file.path(code_folder, "functions.R"))
 
 # 1. Subsetting to the relevant variables. Quick couple notes on the variable names:
 #    - `census_pop` and `census_wor` are the population and workforce counts from the census.
-#    - `vio_overal`, `wh_overa_4`, `acc_overal`, and `insp_overa` are raw counts of violations, wage/hour, accidents, and inspections.
-#       -Sub note: `wh_overa_4` is the wage/hour violations capped at the 99th percentile (max 85 for a given zip year). Other versions include the raw count which is just `wh_overal`, 
+#    - `vio_overal`, `wh_overa_5`, `acc_overal`, and `insp_overa` are raw counts of violations, wage/hour, accidents, and inspections.
+#       -Sub note: `wh_overa_5` is the wage/hour violations capped at the 99th percentile (max 85 for a given zip year). Other versions include the raw count which is just `wh_overal`, 
 #       and `wh_overa_3` which is the Jenks natural breaks that caps at 51 for given zip year. Results with all three are nearly identical throughout with
 #       slight differences in the coefficients.
 #       -The two outocmes of wh_rate_tw (censoring based on employee and violations count) and wh_rate_ra (censoring based on employee and violation rate) are the two sensitivity versions
@@ -68,7 +68,7 @@ model_data <- spatial_data_clean %>%
     census_pop, census_wor,
 
     # Raw counts
-    vio_overal, wh_overa_4, acc_overal, insp_overa, 
+    vio_overal, wh_overa_5, acc_overal, insp_overa, 
 
     # Response variables
     vio_rate, wh_rate_pe, acc_rate,
@@ -87,6 +87,13 @@ model_data <- spatial_data_clean %>%
 
     # Geometry
     geometry
+
+    # Sensitivity variables
+
+    # # Natural breaks
+    # wh_overa_4, wh_rate_na,
+    # # Two way cap
+    # wh_overa_6, wh_rate__1
   ) %>%
   na.omit()
 
@@ -338,7 +345,7 @@ regional_descriptives <- model_data %>%
     n_zip_codes = n(),
     
     total_violations = sum(vio_overal, na.rm = TRUE),
-    total_wh_violations = sum(wh_overa_4, na.rm = TRUE),
+    total_wh_violations = sum(wh_overa_5, na.rm = TRUE),
     total_accidents = sum(acc_overal, na.rm = TRUE),
     total_inspections = sum(insp_overa, na.rm = TRUE),
     
@@ -392,7 +399,7 @@ us_total <- model_data %>%
     n_zip_codes = n(),
     
     total_violations = sum(vio_overal, na.rm = TRUE),
-    total_wh_violations = sum(wh_overa_4, na.rm = TRUE),
+    total_wh_violations = sum(wh_overa_5, na.rm = TRUE),
     total_accidents = sum(acc_overal, na.rm = TRUE),
     total_inspections = sum(insp_overa, na.rm = TRUE),
     
@@ -1005,13 +1012,13 @@ ggsave(filename = file.path(output_folder, "example_retail_map.png"), plot = ret
 model_data <- model_data %>%
   mutate(
     vio_per_100_estab = ifelse(ESTAB_TOTA > 0, (vio_overal / ESTAB_TOTA) * 100, NA),
-    wh_per_100_estab = ifelse(ESTAB_TOTA > 0, (wh_overa_4 / ESTAB_TOTA) * 100, NA),
+    wh_per_100_estab = ifelse(ESTAB_TOTA > 0, (wh_overa_5 / ESTAB_TOTA) * 100, NA),
     acc_per_100_estab = ifelse(ESTAB_TOTA > 0, (acc_overal / ESTAB_TOTA) * 100, NA),
     vio_per_1000_workers = ifelse(census_wor > 0, (vio_overal / census_wor) * 1000, NA),
-    wh_per_1000_workers = ifelse(census_wor > 0, (wh_overa_4 / census_wor) * 1000, NA),
+    wh_per_1000_workers = ifelse(census_wor > 0, (wh_overa_5 / census_wor) * 1000, NA),
     acc_per_1000_workers = ifelse(census_wor > 0, (acc_overal / census_wor) * 1000, NA),
     vio_per_10k_pop = ifelse(census_pop > 0, (vio_overal / census_pop) * 10000, NA),
-    wh_per_10k_pop = ifelse(census_pop > 0, (wh_overa_4 / census_pop) * 10000, NA),
+    wh_per_10k_pop = ifelse(census_pop > 0, (wh_overa_5 / census_pop) * 10000, NA),
     acc_per_10k_pop = ifelse(census_pop > 0, (acc_overal / census_pop) * 10000, NA),
     establishments_per_1000_workers = ifelse(census_wor > 0, (ESTAB_TOTA / census_wor) * 1000, NA),
     establishments_per_1000_pop = ifelse(census_pop > 0, (ESTAB_TOTA / census_pop) * 1000, NA),
@@ -1046,13 +1053,13 @@ model_data <- model_data %>%
     expected_wh_pop = (census_pop * national_rates$national_wh_per_10k_pop) / 10000,
     expected_acc_pop = (census_pop * national_rates$national_acc_per_10k_pop) / 10000,
     SMR_vio_estab = ifelse(expected_vio_estab > 0, vio_overal / expected_vio_estab, NA),
-    SMR_wh_estab = ifelse(expected_wh_estab > 0, wh_overa_4 / expected_wh_estab, NA),
+    SMR_wh_estab = ifelse(expected_wh_estab > 0, wh_overa_5 / expected_wh_estab, NA),
     SMR_acc_estab = ifelse(expected_acc_estab > 0, acc_overal / expected_acc_estab, NA),
     SMR_vio_workers = ifelse(expected_vio_workers > 0, vio_overal / expected_vio_workers, NA),
-    SMR_wh_workers = ifelse(expected_wh_workers > 0, wh_overa_4 / expected_wh_workers, NA),
+    SMR_wh_workers = ifelse(expected_wh_workers > 0, wh_overa_5 / expected_wh_workers, NA),
     SMR_acc_workers = ifelse(expected_acc_workers > 0, acc_overal / expected_acc_workers, NA),
     SMR_vio_pop = ifelse(expected_vio_pop > 0, vio_overal / expected_vio_pop, NA),
-    SMR_wh_pop = ifelse(expected_wh_pop > 0, wh_overa_4 / expected_wh_pop, NA),
+    SMR_wh_pop = ifelse(expected_wh_pop > 0, wh_overa_5 / expected_wh_pop, NA),
     SMR_acc_pop = ifelse(expected_acc_pop > 0, acc_overal / expected_acc_pop, NA)
   )
 summary(as.data.frame(model_data)[c("SMR_vio_estab", "SMR_wh_estab", "SMR_acc_estab", 
@@ -1060,55 +1067,86 @@ summary(as.data.frame(model_data)[c("SMR_vio_estab", "SMR_wh_estab", "SMR_acc_es
                                     "SMR_vio_pop", "SMR_wh_pop", "SMR_acc_pop")])
 
 #-------Fixed Empirical Bayes SMRs and Confidence Intervals
+
+#--Global mean
+# Establishments
 global_vio_SMR_estab <- sum(model_data$vio_overal, na.rm = TRUE) / sum(model_data$expected_vio_estab, na.rm = TRUE)
-global_wh_SMR_estab <- sum(model_data$wh_overa_4, na.rm = TRUE) / sum(model_data$expected_wh_estab, na.rm = TRUE)
+global_wh_SMR_estab <- sum(model_data$wh_overa_5, na.rm = TRUE) / sum(model_data$expected_wh_estab, na.rm = TRUE)
 global_acc_SMR_estab <- sum(model_data$acc_overal, na.rm = TRUE) / sum(model_data$expected_acc_estab, na.rm = TRUE)
-
+# Workers
 global_vio_SMR_workers <- sum(model_data$vio_overal, na.rm = TRUE) / sum(model_data$expected_vio_workers, na.rm = TRUE)
-global_wh_SMR_workers <- sum(model_data$wh_overa_4, na.rm = TRUE) / sum(model_data$expected_wh_workers, na.rm = TRUE)
+global_wh_SMR_workers <- sum(model_data$wh_overa_5, na.rm = TRUE) / sum(model_data$expected_wh_workers, na.rm = TRUE)
 global_acc_SMR_workers <- sum(model_data$acc_overal, na.rm = TRUE) / sum(model_data$expected_acc_workers, na.rm = TRUE)
-
+# Population
 global_vio_SMR_pop <- sum(model_data$vio_overal, na.rm = TRUE) / sum(model_data$expected_vio_pop, na.rm = TRUE)
-global_wh_SMR_pop <- sum(model_data$wh_overa_4, na.rm = TRUE) / sum(model_data$expected_wh_pop, na.rm = TRUE)
+global_wh_SMR_pop <- sum(model_data$wh_overa_5, na.rm = TRUE) / sum(model_data$expected_wh_pop, na.rm = TRUE)
 global_acc_SMR_pop <- sum(model_data$acc_overal, na.rm = TRUE) / sum(model_data$expected_acc_pop, na.rm = TRUE)
 
-variance_vio_estab <- var(model_data$SMR_vio_estab, na.rm = TRUE)
-variance_wh_estab <- var(model_data$SMR_wh_estab, na.rm = TRUE)
-variance_acc_estab <- var(model_data$SMR_acc_estab, na.rm = TRUE)
-variance_vio_workers <- var(model_data$SMR_vio_workers, na.rm = TRUE)
-variance_wh_workers <- var(model_data$SMR_wh_workers, na.rm = TRUE)
-variance_acc_workers <- var(model_data$SMR_acc_workers, na.rm = TRUE)
-variance_vio_pop <- var(model_data$SMR_vio_pop, na.rm = TRUE)
-variance_wh_pop <- var(model_data$SMR_wh_pop, na.rm = TRUE)
-variance_acc_pop <- var(model_data$SMR_acc_pop, na.rm = TRUE)
+#--Variance
+# Establishments
+n_vio_estab <- sum(!is.na(model_data$SMR_vio_estab))
+numerator_vio_estab <- sum(model_data$expected_vio_estab * (model_data$SMR_vio_estab - global_vio_SMR_estab)^2, na.rm = TRUE)
+denominator_vio_estab <- sum(model_data$expected_vio_estab, na.rm = TRUE) - global_vio_SMR_estab * (sum(model_data$expected_vio_estab, na.rm = TRUE) / n_vio_estab)
+variance_vio_estab <- max(numerator_vio_estab / denominator_vio_estab, 0)
+n_wh_estab <- sum(!is.na(model_data$SMR_wh_estab))
+numerator_wh_estab <- sum(model_data$expected_wh_estab * (model_data$SMR_wh_estab - global_wh_SMR_estab)^2, na.rm = TRUE)
+denominator_wh_estab <- sum(model_data$expected_wh_estab, na.rm = TRUE) - global_wh_SMR_estab * (sum(model_data$expected_wh_estab, na.rm = TRUE) / n_wh_estab)
+variance_wh_estab <- max(numerator_wh_estab / denominator_wh_estab, 0)
+n_acc_estab <- sum(!is.na(model_data$SMR_acc_estab))
+numerator_acc_estab <- sum(model_data$expected_acc_estab * (model_data$SMR_acc_estab - global_acc_SMR_estab)^2, na.rm = TRUE)
+denominator_acc_estab <- sum(model_data$expected_acc_estab, na.rm = TRUE) - global_acc_SMR_estab * (sum(model_data$expected_acc_estab, na.rm = TRUE) / n_acc_estab)
+variance_acc_estab <- max(numerator_acc_estab / denominator_acc_estab, 0)
+# Workers
+n_vio_workers <- sum(!is.na(model_data$SMR_vio_workers))
+numerator_vio_workers <- sum(model_data$expected_vio_workers * (model_data$SMR_vio_workers - global_vio_SMR_workers)^2, na.rm = TRUE)
+denominator_vio_workers <- sum(model_data$expected_vio_workers, na.rm = TRUE) - global_vio_SMR_workers * (sum(model_data$expected_vio_workers, na.rm = TRUE) / n_vio_workers)
+variance_vio_workers <- max(numerator_vio_workers / denominator_vio_workers, 0)
+n_wh_workers <- sum(!is.na(model_data$SMR_wh_workers))
+numerator_wh_workers <- sum(model_data$expected_wh_workers * (model_data$SMR_wh_workers - global_wh_SMR_workers)^2, na.rm = TRUE)
+denominator_wh_workers <- sum(model_data$expected_wh_workers, na.rm = TRUE) - global_wh_SMR_workers * (sum(model_data$expected_wh_workers, na.rm = TRUE) / n_wh_workers)
+variance_wh_workers <- max(numerator_wh_workers / denominator_wh_workers, 0)
+n_acc_workers <- sum(!is.na(model_data$SMR_acc_workers))
+numerator_acc_workers <- sum(model_data$expected_acc_workers * (model_data$SMR_acc_workers - global_acc_SMR_workers)^2, na.rm = TRUE)
+denominator_acc_workers <- sum(model_data$expected_acc_workers, na.rm = TRUE) - global_acc_SMR_workers * (sum(model_data$expected_acc_workers, na.rm = TRUE) / n_acc_workers)
+variance_acc_workers <- max(numerator_acc_workers / denominator_acc_workers, 0)
+# Population
+n_vio_pop <- sum(!is.na(model_data$SMR_vio_pop))
+numerator_vio_pop <- sum(model_data$expected_vio_pop * (model_data$SMR_vio_pop - global_vio_SMR_pop)^2, na.rm = TRUE)
+denominator_vio_pop <- sum(model_data$expected_vio_pop, na.rm = TRUE) - global_vio_SMR_pop * (sum(model_data$expected_vio_pop, na.rm = TRUE) / n_vio_pop)
+variance_vio_pop <- max(numerator_vio_pop / denominator_vio_pop, 0)
+n_wh_pop <- sum(!is.na(model_data$SMR_wh_pop))
+numerator_wh_pop <- sum(model_data$expected_wh_pop * (model_data$SMR_wh_pop - global_wh_SMR_pop)^2, na.rm = TRUE)
+denominator_wh_pop <- sum(model_data$expected_wh_pop, na.rm = TRUE) - global_wh_SMR_pop * (sum(model_data$expected_wh_pop, na.rm = TRUE) / n_wh_pop)
+variance_wh_pop <- max(numerator_wh_pop / denominator_wh_pop, 0)
+n_acc_pop <- sum(!is.na(model_data$SMR_acc_pop))
+numerator_acc_pop <- sum(model_data$expected_acc_pop * (model_data$SMR_acc_pop - global_acc_SMR_pop)^2, na.rm = TRUE)
+denominator_acc_pop <- sum(model_data$expected_acc_pop, na.rm = TRUE) - global_acc_SMR_pop * (sum(model_data$expected_acc_pop, na.rm = TRUE) / n_acc_pop)
+variance_acc_pop <- max(numerator_acc_pop / denominator_acc_pop, 0)
 
-# Calculate variance for each denominator separately
-variance_vio_estab <- var(model_data$SMR_vio_estab, na.rm = TRUE)
-variance_wh_estab <- var(model_data$SMR_wh_estab, na.rm = TRUE)
-variance_acc_estab <- var(model_data$SMR_acc_estab, na.rm = TRUE)
-variance_vio_workers <- var(model_data$SMR_vio_workers, na.rm = TRUE)
-variance_wh_workers <- var(model_data$SMR_wh_workers, na.rm = TRUE)
-variance_acc_workers <- var(model_data$SMR_acc_workers, na.rm = TRUE)
-variance_vio_pop <- var(model_data$SMR_vio_pop, na.rm = TRUE)
-variance_wh_pop <- var(model_data$SMR_wh_pop, na.rm = TRUE)
-variance_acc_pop <- var(model_data$SMR_acc_pop, na.rm = TRUE)
-
+#--Alpha parameter
+# Establishment
 alpha_vio_estab <- global_vio_SMR_estab^2 / variance_vio_estab 
 alpha_wh_estab <- global_wh_SMR_estab^2 / variance_wh_estab
 alpha_acc_estab <- global_acc_SMR_estab^2 / variance_acc_estab
+# Workers
 alpha_vio_workers <- global_vio_SMR_workers^2 / variance_vio_workers
 alpha_wh_workers <- global_wh_SMR_workers^2 / variance_wh_workers
 alpha_acc_workers <- global_acc_SMR_workers^2 / variance_acc_workers
+# Population
 alpha_vio_pop <- global_vio_SMR_pop^2 / variance_vio_pop
 alpha_wh_pop <- global_wh_SMR_pop^2 / variance_wh_pop
 alpha_acc_pop <- global_acc_SMR_pop^2 / variance_acc_pop
 
+#--Beta parameter
+# Establishment
 beta_vio_estab <- global_vio_SMR_estab / variance_vio_estab
 beta_wh_estab <- global_wh_SMR_estab / variance_wh_estab
 beta_acc_estab <- global_acc_SMR_estab / variance_acc_estab
+# Workers
 beta_vio_workers <- global_vio_SMR_workers / variance_vio_workers
 beta_wh_workers <- global_wh_SMR_workers / variance_wh_workers
 beta_acc_workers <- global_acc_SMR_workers / variance_acc_workers
+# Population
 beta_vio_pop <- global_vio_SMR_pop / variance_vio_pop
 beta_wh_pop <- global_wh_SMR_pop / variance_wh_pop
 beta_acc_pop <- global_acc_SMR_pop / variance_acc_pop
@@ -1119,15 +1157,15 @@ filtered_smr_data <- model_data %>%
          expected_vio_pop >= 1.0 | expected_wh_pop >= 1.0 | expected_acc_pop >= 1.0) %>%
   mutate(
     EB_vio_SMR_estab = ifelse(expected_vio_estab >= 1, (vio_overal + alpha_vio_estab) / (expected_vio_estab + beta_vio_estab), NA),
-    EB_wh_SMR_estab = ifelse(expected_wh_estab >= 1, (wh_overa_4 + alpha_wh_estab) / (expected_wh_estab + beta_wh_estab), NA),
+    EB_wh_SMR_estab = ifelse(expected_wh_estab >= 1, (wh_overa_5 + alpha_wh_estab) / (expected_wh_estab + beta_wh_estab), NA),
     EB_acc_SMR_estab = ifelse(expected_acc_estab >= 1, (acc_overal + alpha_acc_estab) / (expected_acc_estab + beta_acc_estab), NA),
     
     EB_vio_SMR_workers = ifelse(expected_vio_workers >= 1, (vio_overal + alpha_vio_workers) / (expected_vio_workers + beta_vio_workers), NA),
-    EB_wh_SMR_workers = ifelse(expected_wh_workers >= 1, (wh_overa_4 + alpha_wh_workers) / (expected_wh_workers + beta_wh_workers), NA),
+    EB_wh_SMR_workers = ifelse(expected_wh_workers >= 1, (wh_overa_5 + alpha_wh_workers) / (expected_wh_workers + beta_wh_workers), NA),
     EB_acc_SMR_workers = ifelse(expected_acc_workers >= 1, (acc_overal + alpha_acc_workers) / (expected_acc_workers + beta_acc_workers), NA),
     
     EB_vio_SMR_pop = ifelse(expected_vio_pop >= 1, (vio_overal + alpha_vio_pop) / (expected_vio_pop + beta_vio_pop), NA),
-    EB_wh_SMR_pop = ifelse(expected_wh_pop >= 1, (wh_overa_4 + alpha_wh_pop) / (expected_wh_pop + beta_wh_pop), NA),
+    EB_wh_SMR_pop = ifelse(expected_wh_pop >= 1, (wh_overa_5 + alpha_wh_pop) / (expected_wh_pop + beta_wh_pop), NA),
     EB_acc_SMR_pop = ifelse(expected_acc_pop >= 1, (acc_overal + alpha_acc_pop) / (expected_acc_pop + beta_acc_pop), NA)
   )
 
@@ -2046,7 +2084,7 @@ combinations$description <- c(
 )
 get_columns <- function(outcome, denominator) {
   observed_col <- paste0(outcome, "_overal")
-  if(outcome == "wh") observed_col <- "wh_overa_4"
+  if(outcome == "wh") observed_col <- "wh_overa_5"
   
   expected_col <- paste0("expected_", outcome, "_", denominator)
   
