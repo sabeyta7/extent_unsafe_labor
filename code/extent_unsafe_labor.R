@@ -15,9 +15,11 @@ library(patchwork)
 current_dir <- getwd()
 data_folder <- file.path(current_dir, "data")
 code_folder <- file.path(current_dir, "code")
+output_folder <- file.path(current_dir, "output")
+
 
 # Load shapefile
-spatial_data <- st_read(file.path(data_folder, "labor_data.shp"))
+spatial_data <- st_read(file.path(data_folder, "cross_sectional_data_multi_censored_26_update.shp"))
 
 # Clean geometries
 is_empty <- st_is_empty(spatial_data)
@@ -210,6 +212,7 @@ library(spatstat)
 library(DCluster)
 library(survey)
 library(cowplot)
+library(tidyverse)
 
 # Basic descriptives. Pulling out summaries for the industry variable, plotting histograms, and creating a density plot for the most common industries
 
@@ -278,13 +281,13 @@ all_industries_hist <- ggplot(industry_data_long, aes(x = percentage)) +
     y = "Frequency"
   )
 
-ggsave(
-  filename = file.path(output_folder, "all_industries_histogram.png"),
-  plot = all_industries_hist,
-  width = 10,
-  height = 8,
-  dpi = 300
-)
+# ggsave(
+#   filename = file.path(output_folder, "all_industries_histogram.png"),
+#   plot = all_industries_hist,
+#   width = 10,
+#   height = 8,
+#   dpi = 300
+# )
 
 top_industries <- c("ESTAB_23_P", "ESTAB_31_1", "ESTAB_11_P", "ESTAB_48_1", "ESTAB_72_P")
 top_industry_names <- industry_data_long %>%
@@ -426,12 +429,63 @@ us_total <- model_data %>%
 
 regional_with_us <- bind_rows(regional_descriptives, us_total)
 
-regional_descriptives_t <- regional_with_us %>%
-  column_to_rownames("region_8") %>%
+print(regional_with_us, n = Inf, width = Inf)
+
+reduced_descriptives <- regional_with_us %>%
+  dplyr::select(
+    region_8,
+    n_zip_codes,
+    agriculture_per_1k, mining_per_1k, utilities_per_1k, construction_per_1k,
+    manufacturing_per_1k, wholesale_per_1k, retail_per_1k, transportation_per_1k,
+    information_per_1k, finance_per_1k, real_estate_per_1k, professional_per_1k,
+    management_per_1k, administrative_per_1k, education_per_1k, healthcare_per_1k,
+    arts_per_1k, accommodation_per_1k,
+    regional_violation_rate, regional_wh_rate, regional_accident_rate, regional_inspection_rate
+  ) %>%
+  mutate(across(where(is.numeric), ~ round(., 2))) %>%
+  rename(
+    Region = region_8,
+    `ZIP Codes` = n_zip_codes,
+    Agriculture = agriculture_per_1k,
+    Mining = mining_per_1k,
+    Utilities = utilities_per_1k,
+    Construction = construction_per_1k,
+    Manufacturing = manufacturing_per_1k,
+    Wholesale = wholesale_per_1k,
+    Retail = retail_per_1k,
+    Transportation = transportation_per_1k,
+    Information = information_per_1k,
+    Finance = finance_per_1k,
+    `Real Estate` = real_estate_per_1k,
+    Professional = professional_per_1k,
+    Management = management_per_1k,
+    Administrative = administrative_per_1k,
+    Education = education_per_1k,
+    Healthcare = healthcare_per_1k,
+    Arts = arts_per_1k,
+    Accommodation = accommodation_per_1k,
+    `Violation Rate` = regional_violation_rate,
+    `WH Rate` = regional_wh_rate,
+    `Accident Rate` = regional_accident_rate,
+    `Inspection Rate` = regional_inspection_rate
+  ) %>%
+  # Reorder so US_TOTAL comes first, then regions by your preferred order
+  mutate(Region = factor(Region, levels = c(
+    "US_TOTAL", "Pacific", "Southeast", "Great Lakes",
+    "Mid-Atlantic", "Southwest", "Plains", "Mountain West", "New England"
+  ))) %>%
+  arrange(Region) %>%
   t() %>%
-  as.data.frame()
-print(round(regional_descriptives_t, 2))
-write.csv(regional_descriptives_t, file.path(output_folder, "regional_descriptives.csv"), row.names = FALSE)
+  as.data.frame() %>%
+  rownames_to_column("Metric")
+
+# Fix column names to use region names instead of index numbers
+colnames(reduced_descriptives) <- c("Metric", as.character(reduced_descriptives[1, -1]))
+reduced_descriptives <- reduced_descriptives[-1, ]  # remove the Region row
+
+print(reduced_descriptives)
+
+write.csv(reduced_descriptives, file.path(output_folder, "regional_descriptives.csv"), row.names = FALSE)
 
 ##=============================================##
 ##   3. OUTCOMES BY REGION FOR EACH INDUSTRY   ##
@@ -685,6 +739,7 @@ labor_cont_heatmap <- create_heatmap(labor_cont_mat, "OSHA Violations - Regional
 wh_cont_heatmap <- create_heatmap(wh_cont_mat, "Wage & Hour Violations - Regional Industry Risk (Severity)")
 acc_cont_heatmap <- create_heatmap(acc_cont_mat, "Accident Rate - Regional Industry Risk (Severity)")
 
+# The below heatmaps are not used in the paper, but may provide any extra context if interested
 png(file.path(output_folder, "binary_correaltion_heatmap.png"), width = 800, height = 1200)
 par(mfrow = c(3, 1))
 create_heatmap(labor_binary_mat, "OSHA Violations (Occurrence)")
@@ -1319,7 +1374,62 @@ region_summary <- region_summary %>%
 print("Updated region_summary with confidence intervals:")
 print(region_summary, n = Inf, width = Inf)
 
-write.csv(region_summary, file = file.path(output_folder, "region_summary_with_EB_SMRs_and_CIs.csv"), row.names = FALSE)
+naics_lookup <- c(
+  "11" = "Agric", "21" = "Mining", "22" = "Util", "23" = "Const",
+  "31" = "Manuf", "42" = "Whole", "44" = "Retail", "48" = "Trans",
+  "51" = "Info", "52" = "Finance", "53" = "RealEst", "54" = "Prof",
+  "55" = "Mgmt", "56" = "Admin", "61" = "Educ", "62" = "Health",
+  "71" = "Arts", "72" = "Accom"
+)
+
+regional_summary_formatted <- region_summary %>%
+  mutate(
+    `Top Binary Industries (Vio/WH/Acc)` = paste(
+      naics_lookup[as.character(top_labor_binary_industry)],
+      naics_lookup[as.character(top_wh_binary_industry)],
+      naics_lookup[as.character(top_acc_binary_industry)],
+      sep = "/"
+    ),
+    `Top Continuous Industries (Vio/WH/Acc)` = paste(
+      naics_lookup[as.character(top_labor_cont_industry)],
+      naics_lookup[as.character(top_wh_cont_industry)],
+      naics_lookup[as.character(top_acc_cont_industry)],
+      sep = "/"
+    ),
+    `Overall Risk (Binary/Continuous)` = paste(
+      round(overall_binary_risk, 2),
+      round(overall_cont_risk, 2),
+      sep = "/"
+    ),
+    `EB SMR Violations` = paste0(
+      round(regional_EB_vio_estab, 2),
+      " (", round(regional_EB_vio_lower_estab, 2),
+      "-", round(regional_EB_vio_upper_estab, 2), ")"
+    ),
+    `EB SMR Wage & Hour` = paste0(
+      round(regional_EB_wh_estab, 2),
+      " (", round(regional_EB_wh_lower_estab, 2),
+      "-", round(regional_EB_wh_upper_estab, 2), ")"
+    ),
+    `EB SMR Accidents` = paste0(
+      round(regional_EB_acc_estab, 2),
+      " (", round(regional_EB_acc_lower_estab, 2),
+      "-", round(regional_EB_acc_upper_estab, 2), ")"
+    )
+  ) %>%
+  dplyr::select(
+    Region = region,
+    `Top Binary Industries (Vio/WH/Acc)`,
+    `Top Continuous Industries (Vio/WH/Acc)`,
+    `Overall Risk (Binary/Continuous)`,
+    `EB SMR Violations`,
+    `EB SMR Wage & Hour`,
+    `EB SMR Accidents`
+  )
+
+print(regional_summary_formatted, n = Inf, width = Inf)
+
+write.csv(regional_summary_formatted, file = file.path(output_folder, "region_summary_with_EB_SMRs_and_CIs.csv"), row.names = FALSE)
 
 #-------Visuals
 
@@ -1332,9 +1442,20 @@ model_data_with_smrs <- model_data %>%
   mutate(zip_id = as.character(zip_id)) %>%
   left_join(smr_lookup %>% mutate(zip_id = as.character(zip_id)), by = "zip_id")
 
-# Filter to contiguous states (use the working approach)
+model_data_with_smrs <- st_as_sf(model_data_with_smrs, sf_column_name = "geometry")
+
+# 2. Define your contiguous states list (from your existing logic)
 contiguous_states <- setdiff(levels(model_data_with_smrs$state), c("AK", "HI", "PR", "DC"))
-model_data_contiguous <- model_data_with_smrs[model_data_with_smrs$state %in% contiguous_states, ]
+
+# 3. Create the contiguous dataset using subset() - often more stable when filter() fails
+model_data_contiguous <- model_data_with_smrs %>%
+  # Use subset to avoid the "undefined columns" error
+  subset(state %in% contiguous_states) %>%
+  # Remove the "empty" shapes causing the off-center/Alaska gap
+  dplyr::filter(!st_is_empty(geometry)) %>%
+  # Project to Albers Equal Area (Best for US Mainland maps)
+  st_transform(5070)
+
 
 # Add significance categories to the data
 model_data_contiguous <- model_data_contiguous %>%
@@ -1359,18 +1480,17 @@ model_data_contiguous <- model_data_contiguous %>%
     )
   )
 
-model_data_contiguous <- st_as_sf(model_data_contiguous)
-
-vio_quantiles <- quantile(model_data_with_smrs$EB_vio_SMR_estab, 
+vio_quantiles <- quantile(model_data_contiguous$EB_vio_SMR_estab, 
                          probs = c(0, 0.2, 0.4, 0.6, 0.8, 1.0), na.rm = TRUE)
 
-wh_quantiles <- quantile(model_data_with_smrs$EB_wh_SMR_estab, 
+wh_quantiles <- quantile(model_data_contiguous$EB_wh_SMR_estab, 
                         probs = c(0, 0.2, 0.4, 0.6, 0.8, 1.0), na.rm = TRUE)
-acc_quantiles <- quantile(model_data_with_smrs$EB_acc_SMR_estab, 
+acc_quantiles <- quantile(model_data_contiguous$EB_acc_SMR_estab, 
                          probs = c(0, 0.2, 0.4, 0.6, 0.8, 1.0), na.rm = TRUE)
+
 
 vio_smr_plot <- ggplot(model_data_contiguous) +
-  geom_sf(aes(fill = EB_vio_SMR_estab), color = "darkgrey", linewidth = .002) +
+  geom_sf(aes(fill = EB_vio_SMR_estab, geometry = geometry), color = "darkgrey", linewidth = .002) +
   scale_fill_distiller(
     palette = "Blues", na.value = "grey90", direction = 1,
     breaks = vio_quantiles, limits = c(0, 2),
@@ -1385,7 +1505,7 @@ vio_smr_plot <- ggplot(model_data_contiguous) +
   labs(title = "Violations SMR (Establishments)")
 
 wage_smr_plot <- ggplot(model_data_contiguous) +
-  geom_sf(aes(fill = EB_wh_SMR_estab), color = "darkgrey", linewidth = .002) +
+  geom_sf(aes(fill = EB_wh_SMR_estab, geometry = geometry), color = "darkgrey", linewidth = .002) +
   scale_fill_distiller(
     palette = "Reds", na.value = "grey90", direction = 1,
     breaks = wh_quantiles, limits = c(0, 2),
@@ -1400,7 +1520,7 @@ wage_smr_plot <- ggplot(model_data_contiguous) +
   labs(title = "Wage & Hour SMR (Establishments)")
 
 acc_smr_plot <- ggplot(model_data_contiguous) +
-  geom_sf(aes(fill = EB_acc_SMR_estab), color = "darkgrey", linewidth = .002) +
+  geom_sf(aes(fill = EB_acc_SMR_estab, geometry = geometry), color = "darkgrey", linewidth = .002) +
   scale_fill_distiller(
     palette = "Greens", na.value = "grey90", direction = 1,
     breaks = acc_quantiles, limits = c(0, 2),
@@ -1428,7 +1548,7 @@ ggsave(
 )
 
 vio_sig_map <- ggplot(model_data_contiguous) +
-  geom_sf(aes(fill = vio_sig_cat), color = "darkgrey", linewidth = .002) +
+  geom_sf(aes(fill = vio_sig_cat, geometry = geometry), color = "darkgrey", linewidth = .002) +
   scale_fill_manual(
     name = "Significance",
     values = c("High" = "#08519c",    # Dark blue
@@ -1449,7 +1569,7 @@ vio_sig_map <- ggplot(model_data_contiguous) +
   labs(title = "Violations Significance")
 
 wh_sig_map <- ggplot(model_data_contiguous) +
-  geom_sf(aes(fill = wh_sig_cat), color = "darkgrey", linewidth = .002) +
+  geom_sf(aes(fill = wh_sig_cat, geometry = geometry), color = "darkgrey", linewidth = .002) +
   scale_fill_manual(
     name = "Significance",
     values = c("High" = "#a50f15",    # Dark red
@@ -1470,7 +1590,7 @@ wh_sig_map <- ggplot(model_data_contiguous) +
   labs(title = "Wage & Hour Significance")
 
 acc_sig_map <- ggplot(model_data_contiguous) +
-  geom_sf(aes(fill = acc_sig_cat), color = "darkgrey", linewidth = .002) +
+  geom_sf(aes(fill = acc_sig_cat, geometry = geometry), color = "darkgrey", linewidth = .002) +
   scale_fill_manual(
     name = "Significance",
     values = c("High" = "#238b45",    # Dark green
@@ -1495,6 +1615,22 @@ bottom_sig <- plot_grid(NULL, acc_sig_map, NULL, ncol = 3, rel_widths = c(1, 2, 
 sig_combined_plot <- plot_grid(top_sig, bottom_sig, ncol = 1, rel_heights = c(1, 1))
 ggsave(filename = file.path(output_folder, "smr_sig_maps.png"), plot = sig_combined_plot, width = 10, height = 8, dpi = 300)
 
+
+# Combining SMR and significance plots into one figure
+# Top: Regular SMR maps
+combined_top <- plot_grid(vio_smr_plot, wage_smr_plot, acc_smr_plot, ncol = 3)
+# Bottom: Significance maps
+combined_bottom <- plot_grid(vio_sig_map, wh_sig_map, acc_sig_map, ncol = 3)
+final_combined_plot <- plot_grid(
+  combined_top, combined_bottom, ncol = 1, rel_heights = c(1, 1),
+  top = textGrob("Figure 1: Standardized Mortality Ratios and Statistical Significance of Labor Violations by Zip Code",
+                 gp = gpar(fontsize = 16, fontface = "bold"))
+)
+ggsave(
+  file.path(output_folder, "smr_and_sig_maps.png"),
+  plot = final_combined_plot,
+  width = 12, height = 10, dpi = 300
+)
 ##==================================================##
 ##     7. REGIONAL VARIATION IN INDUSTRY RISK       ##
 ##==================================================##
