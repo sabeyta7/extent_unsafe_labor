@@ -186,7 +186,7 @@ results_na <- list()
 results_tw <- list()
 
 for (region in unique(model_data$region_8)) {
-  region_data <- model_data %>% filter(region_8 == region)
+  region_data <- model_data %>% ~filter(region_8 == region)
   wh_positive_region_na <- wh_positive_na %>% filter(region_8 == region)
   wh_positive_region_tw <- wh_positive_tw %>% filter(region_8 == region)
 
