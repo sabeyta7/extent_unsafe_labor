@@ -77,7 +77,7 @@ model_data <- spatial_data_clean %>%
     ESTAB_11_P, ESTAB_21_P, ESTAB_22_P, ESTAB_23_P, ESTAB_31_1, 
     ESTAB_42_P, ESTAB_44_1, ESTAB_48_1, ESTAB_51_P, ESTAB_52_P, 
     ESTAB_53_P, ESTAB_54_P, ESTAB_55_P, ESTAB_56_P, ESTAB_61_P, 
-    ESTAB_62_P, ESTAB_71_P, ESTAB_72_P, ESTAB_TOTA,
+    ESTAB_62_P, ESTAB_71_P, ESTAB_72_P, ESTAB_81_P, ESTAB_TOTA,
 
     # Geographic identifiers
     state, region_8,
@@ -253,6 +253,7 @@ industry_data_long <- model_data %>%
       industry_var == "ESTAB_62_P" ~ "Healthcare",
       industry_var == "ESTAB_71_P" ~ "Arts & Entertainment",
       industry_var == "ESTAB_72_P" ~ "Accommodation & Food",
+      industry_var == "ESTAB_81_P" ~ "Other Services",
       TRUE ~ industry_var
     )
   )
@@ -290,7 +291,7 @@ regional_descriptives <- model_data %>%
     healthcare_per_1k = weighted.mean(ESTAB_62_P, census_wor, na.rm = TRUE),
     arts_per_1k = weighted.mean(ESTAB_71_P, census_wor, na.rm = TRUE),
     accommodation_per_1k = weighted.mean(ESTAB_72_P, census_wor, na.rm = TRUE),
-    
+    other_services_per_1k = weighted.mean(ESTAB_81_P, census_wor, na.rm = TRUE),
     avg_violation_rate = mean(vio_rate, na.rm = TRUE),
     avg_wh_rate = mean(wh_rate_pe, na.rm = TRUE),
     avg_accident_rate = mean(acc_rate, na.rm = TRUE),
@@ -340,7 +341,9 @@ us_total <- model_data %>%
     education_per_1k = weighted.mean(ESTAB_61_P, census_wor, na.rm = TRUE),
     healthcare_per_1k = weighted.mean(ESTAB_62_P, census_wor, na.rm = TRUE),
     arts_per_1k = weighted.mean(ESTAB_71_P, census_wor, na.rm = TRUE),
-    accommodation_per_1k = weighted.mean(ESTAB_72_P, census_wor, na.rm = TRUE)
+    accommodation_per_1k = weighted.mean(ESTAB_72_P, census_wor, na.rm = TRUE),
+    other_services_per_1k = weighted.mean(ESTAB_81_P, census_wor, na.rm = TRUE)
+
   ) %>%
   mutate(
     regional_violation_rate = total_violations / total_establishments * 100,
@@ -361,7 +364,7 @@ reduced_descriptives <- regional_with_us %>%
     manufacturing_per_1k, wholesale_per_1k, retail_per_1k, transportation_per_1k,
     information_per_1k, finance_per_1k, real_estate_per_1k, professional_per_1k,
     management_per_1k, administrative_per_1k, education_per_1k, healthcare_per_1k,
-    arts_per_1k, accommodation_per_1k,
+    arts_per_1k, accommodation_per_1k, other_services_per_1k,
     regional_violation_rate, regional_wh_rate, regional_accident_rate, regional_inspection_rate
   ) %>%
   mutate(across(where(is.numeric), ~ round(., 2))) %>%
@@ -386,6 +389,7 @@ reduced_descriptives <- regional_with_us %>%
     Healthcare = healthcare_per_1k,
     Arts = arts_per_1k,
     Accommodation = accommodation_per_1k,
+    `Other Services` = other_services_per_1k,
     `Violation Rate` = regional_violation_rate,
     `WH Rate` = regional_wh_rate,
     `Accident Rate` = regional_accident_rate,
@@ -1131,7 +1135,7 @@ naics_lookup <- c(
   "31" = "Manuf", "42" = "Whole", "44" = "Retail", "48" = "Trans",
   "51" = "Info", "52" = "Finance", "53" = "RealEst", "54" = "Prof",
   "55" = "Mgmt", "56" = "Admin", "61" = "Educ", "62" = "Health",
-  "71" = "Arts", "72" = "Accom"
+  "71" = "Arts", "72" = "Accom", "81" = "Other"
 )
 
 regional_summary_formatted <- region_summary %>%
@@ -1189,27 +1193,16 @@ write.csv(regional_summary_formatted, file = file.path(output_folder, "region_su
 smr_lookup <- filtered_smr_data %>%
   st_drop_geometry() %>%
   dplyr::select(zip_id, starts_with("EB_"), starts_with("SMR_"))
-
 model_data_with_smrs <- model_data %>%
   mutate(zip_id = as.character(zip_id)) %>%
   left_join(smr_lookup %>% mutate(zip_id = as.character(zip_id)), by = "zip_id")
-
 model_data_with_smrs <- st_as_sf(model_data_with_smrs, sf_column_name = "geometry")
-
-# 2. Define your contiguous states list (from your existing logic)
 contiguous_states <- setdiff(levels(model_data_with_smrs$state), c("AK", "HI", "PR", "DC"))
-
-# 3. Create the contiguous dataset using subset() - often more stable when filter() fails
 model_data_contiguous <- model_data_with_smrs %>%
-  # Use subset to avoid the "undefined columns" error
   subset(state %in% contiguous_states) %>%
-  # Remove the "empty" shapes causing the off-center/Alaska gap
   dplyr::filter(!st_is_empty(geometry)) %>%
-  # Project to Albers Equal Area (Best for US Mainland maps)
   st_transform(5070)
 
-
-# Add significance categories to the data
 model_data_contiguous <- model_data_contiguous %>%
   dplyr::mutate(
     vio_sig_cat = case_when(
@@ -1454,7 +1447,8 @@ industry_names <- c(
   "ESTAB_61_P" = "Education",
   "ESTAB_62_P" = "Healthcare",
   "ESTAB_71_P" = "Arts & Entertainment",
-  "ESTAB_72_P" = "Accommodation & Food"
+  "ESTAB_72_P" = "Accommodation & Food",
+  "ESTAB_81_P" = "Other Services"
 )
 
 industry_region_interactions$industry_name <- industry_names[industry_region_interactions$industry]
@@ -1482,6 +1476,8 @@ for(i in 1:length(tables_list)) {
 }
 
 combined_table <- do.call(rbind, tables_list)
+combined_table$industry_name <- rownames(combined_table)
+write.csv(combined_table, file = file.path(output_folder, "industry_region_interactions_full_table.csv"), row.names = FALSE)
 
 big_table <- kable(combined_table, 
                    format = "html", 
@@ -1512,7 +1508,8 @@ industry_abbrev <- c(
   "Retail Trade" = "Retail",
   "Transportation" = "Trans",
   "Utilities" = "Util",
-  "Wholesale Trade" = "Whole"
+  "Wholesale Trade" = "Whole",
+  "Other Services" = "Other"
 )
 models <- unique(combined_table$model_type)
 model_abbrev <- c(
