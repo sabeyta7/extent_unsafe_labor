@@ -590,35 +590,7 @@ for (reg in unique(relative_risk$region)) {
     labor_binary_cont_same <- !is.na(top_labor_binary) && !is.na(top_labor_cont) && top_labor_binary == top_labor_cont
     wh_binary_cont_same <- !is.na(top_wh_binary) && !is.na(top_wh_cont) && top_wh_binary == top_wh_cont
     acc_binary_cont_same <- !is.na(top_acc_binary) && !is.na(top_acc_cont) && top_acc_binary == top_acc_cont
-    
-    # Binary correlation statistics
-    mean_labor_binary_cor <- mean(region_data$labor_binary_correlation, na.rm = TRUE)
-    mean_wh_binary_cor <- mean(region_data$wh_binary_correlation, na.rm = TRUE)
-    mean_acc_binary_cor <- mean(region_data$acc_binary_correlation, na.rm = TRUE)
-    
-    max_labor_binary_cor <- max(region_data$labor_binary_correlation, na.rm = TRUE)
-    max_wh_binary_cor <- max(region_data$wh_binary_correlation, na.rm = TRUE)
-    max_acc_binary_cor <- max(region_data$acc_binary_correlation, na.rm = TRUE)
-    
-    # Continuous correlation statistics
-    mean_labor_cont_cor <- mean(region_data$labor_cont_correlation, na.rm = TRUE)
-    mean_wh_cont_cor <- mean(region_data$wh_cont_correlation, na.rm = TRUE)
-    mean_acc_cont_cor <- mean(region_data$acc_cont_correlation, na.rm = TRUE)
-    
-    max_labor_cont_cor <- max(region_data$labor_cont_correlation, na.rm = TRUE)
-    max_wh_cont_cor <- max(region_data$wh_cont_correlation, na.rm = TRUE)
-    max_acc_cont_cor <- max(region_data$acc_cont_correlation, na.rm = TRUE)
-    
-    # Binary concentration indices
-    labor_binary_concentration <- if (mean_labor_binary_cor == 0 || is.infinite(mean_labor_binary_cor)) NA else max_labor_binary_cor / mean_labor_binary_cor
-    wh_binary_concentration <- if (mean_wh_binary_cor == 0 || is.infinite(mean_wh_binary_cor)) NA else max_wh_binary_cor / mean_wh_binary_cor
-    acc_binary_concentration <- if (mean_acc_binary_cor == 0 || is.infinite(mean_acc_binary_cor)) NA else max_acc_binary_cor / mean_acc_binary_cor
-    
-    # Continuous concentration indices
-    labor_cont_concentration <- if (mean_labor_cont_cor == 0 || is.infinite(mean_labor_cont_cor)) NA else max_labor_cont_cor / mean_labor_cont_cor
-    wh_cont_concentration <- if (mean_wh_cont_cor == 0 || is.infinite(mean_wh_cont_cor)) NA else max_wh_cont_cor / mean_wh_cont_cor
-    acc_cont_concentration <- if (mean_acc_cont_cor == 0 || is.infinite(mean_acc_cont_cor)) NA else max_acc_cont_cor / mean_acc_cont_cor
-    
+        
     # Binary risk statistics
     mean_labor_binary_risk <- mean(region_data$relative_labor_risk, na.rm = TRUE)
     mean_wh_binary_risk <- mean(region_data$relative_wh_risk, na.rm = TRUE)
@@ -664,27 +636,9 @@ for (reg in unique(relative_risk$region)) {
       wh_binary_cont_same = wh_binary_cont_same,
       acc_binary_cont_same = acc_binary_cont_same,
       
-      # Binary concentration indices
-      labor_binary_concentration = labor_binary_concentration,
-      wh_binary_concentration = wh_binary_concentration,
-      acc_binary_concentration = acc_binary_concentration,
-      
-      # Continuous concentration indices
-      labor_cont_concentration = labor_cont_concentration,
-      wh_cont_concentration = wh_cont_concentration,
-      acc_cont_concentration = acc_cont_concentration,
-      
       # Overall risk measures
       overall_binary_risk = overall_binary_risk,
-      overall_cont_risk = overall_cont_risk,
-      
-      # Maximum correlation values
-      max_labor_binary_cor = max_labor_binary_cor,
-      max_wh_binary_cor = max_wh_binary_cor,
-      max_acc_binary_cor = max_acc_binary_cor,
-      max_labor_cont_cor = max_labor_cont_cor,
-      max_wh_cont_cor = max_wh_cont_cor,
-      max_acc_cont_cor = max_acc_cont_cor
+      overall_cont_risk = overall_cont_risk
     )
     
     # Append to results
@@ -731,17 +685,7 @@ model_data <- model_data %>%
   mutate(
     vio_per_100_estab = ifelse(ESTAB_TOTA > 0, (vio_overal / ESTAB_TOTA) * 100, NA),
     wh_per_100_estab = ifelse(ESTAB_TOTA > 0, (wh_overa_5 / ESTAB_TOTA) * 100, NA),
-    acc_per_100_estab = ifelse(ESTAB_TOTA > 0, (acc_overal / ESTAB_TOTA) * 100, NA),
-    vio_per_1000_workers = ifelse(census_wor > 0, (vio_overal / census_wor) * 1000, NA),
-    wh_per_1000_workers = ifelse(census_wor > 0, (wh_overa_5 / census_wor) * 1000, NA),
-    acc_per_1000_workers = ifelse(census_wor > 0, (acc_overal / census_wor) * 1000, NA),
-    vio_per_10k_pop = ifelse(census_pop > 0, (vio_overal / census_pop) * 10000, NA),
-    wh_per_10k_pop = ifelse(census_pop > 0, (wh_overa_5 / census_pop) * 10000, NA),
-    acc_per_10k_pop = ifelse(census_pop > 0, (acc_overal / census_pop) * 10000, NA),
-    establishments_per_1000_workers = ifelse(census_wor > 0, (ESTAB_TOTA / census_wor) * 1000, NA),
-    establishments_per_1000_pop = ifelse(census_pop > 0, (ESTAB_TOTA / census_pop) * 1000, NA),
-    insp_per_100_estab = (insp_overa / ESTAB_TOTA) * 100,
-    insp_per_1000_workers = ifelse(census_wor > 0, (insp_overa / census_wor) * 1000, NA)
+    acc_per_100_estab = ifelse(ESTAB_TOTA > 0, (acc_overal / ESTAB_TOTA) * 100, NA)
   )
 
 national_rates <- model_data %>%
@@ -749,13 +693,8 @@ national_rates <- model_data %>%
   summarise(
     national_vio_per_100_estab = weighted.mean(vio_per_100_estab, ESTAB_TOTA, na.rm = TRUE),
     national_wh_per_100_estab = weighted.mean(wh_per_100_estab, ESTAB_TOTA, na.rm = TRUE),
-    national_acc_per_100_estab = weighted.mean(acc_per_100_estab, ESTAB_TOTA, na.rm = TRUE),
-    national_vio_per_1000_workers = weighted.mean(vio_per_1000_workers, census_wor, na.rm = TRUE),
-    national_wh_per_1000_workers = weighted.mean(wh_per_1000_workers, census_wor, na.rm = TRUE),
-    national_acc_per_1000_workers = weighted.mean(acc_per_1000_workers, census_wor, na.rm = TRUE),
-    national_vio_per_10k_pop = weighted.mean(vio_per_10k_pop, census_pop, na.rm = TRUE),
-    national_wh_per_10k_pop = weighted.mean(wh_per_10k_pop, census_pop, na.rm = TRUE),
-    national_acc_per_10k_pop = weighted.mean(acc_per_10k_pop, census_pop, na.rm = TRUE)  )
+    national_acc_per_100_estab = weighted.mean(acc_per_100_estab, ESTAB_TOTA, na.rm = TRUE)
+)
 print(national_rates)
 
 #-----Expected rates, SMRs, and CIs
@@ -764,44 +703,20 @@ model_data <- model_data %>%
     expected_vio_estab = (ESTAB_TOTA * national_rates$national_vio_per_100_estab) / 100,
     expected_wh_estab = (ESTAB_TOTA * national_rates$national_wh_per_100_estab) / 100,
     expected_acc_estab = (ESTAB_TOTA * national_rates$national_acc_per_100_estab) / 100,
-    expected_vio_workers = (census_wor * national_rates$national_vio_per_1000_workers) / 1000,
-    expected_wh_workers = (census_wor * national_rates$national_wh_per_1000_workers) / 1000,
-    expected_acc_workers = (census_wor * national_rates$national_acc_per_1000_workers) / 1000,
-    expected_vio_pop = (census_pop * national_rates$national_vio_per_10k_pop) / 10000,
-    expected_wh_pop = (census_pop * national_rates$national_wh_per_10k_pop) / 10000,
-    expected_acc_pop = (census_pop * national_rates$national_acc_per_10k_pop) / 10000,
     SMR_vio_estab = ifelse(expected_vio_estab > 0, vio_overal / expected_vio_estab, NA),
     SMR_wh_estab = ifelse(expected_wh_estab > 0, wh_overa_5 / expected_wh_estab, NA),
-    SMR_acc_estab = ifelse(expected_acc_estab > 0, acc_overal / expected_acc_estab, NA),
-    SMR_vio_workers = ifelse(expected_vio_workers > 0, vio_overal / expected_vio_workers, NA),
-    SMR_wh_workers = ifelse(expected_wh_workers > 0, wh_overa_5 / expected_wh_workers, NA),
-    SMR_acc_workers = ifelse(expected_acc_workers > 0, acc_overal / expected_acc_workers, NA),
-    SMR_vio_pop = ifelse(expected_vio_pop > 0, vio_overal / expected_vio_pop, NA),
-    SMR_wh_pop = ifelse(expected_wh_pop > 0, wh_overa_5 / expected_wh_pop, NA),
-    SMR_acc_pop = ifelse(expected_acc_pop > 0, acc_overal / expected_acc_pop, NA)
+    SMR_acc_estab = ifelse(expected_acc_estab > 0, acc_overal / expected_acc_estab, NA)
   )
-summary(as.data.frame(model_data)[c("SMR_vio_estab", "SMR_wh_estab", "SMR_acc_estab", 
-                                    "SMR_vio_workers", "SMR_wh_workers", "SMR_acc_workers",
-                                    "SMR_vio_pop", "SMR_wh_pop", "SMR_acc_pop")])
+summary(as.data.frame(model_data)[c("SMR_vio_estab", "SMR_wh_estab", "SMR_acc_estab" )])
 
 #-------Fixed Empirical Bayes SMRs and Confidence Intervals
 
 #--Global mean
-# Establishments
 global_vio_SMR_estab <- sum(model_data$vio_overal, na.rm = TRUE) / sum(model_data$expected_vio_estab, na.rm = TRUE)
 global_wh_SMR_estab <- sum(model_data$wh_overa_5, na.rm = TRUE) / sum(model_data$expected_wh_estab, na.rm = TRUE)
 global_acc_SMR_estab <- sum(model_data$acc_overal, na.rm = TRUE) / sum(model_data$expected_acc_estab, na.rm = TRUE)
-# Workers
-global_vio_SMR_workers <- sum(model_data$vio_overal, na.rm = TRUE) / sum(model_data$expected_vio_workers, na.rm = TRUE)
-global_wh_SMR_workers <- sum(model_data$wh_overa_5, na.rm = TRUE) / sum(model_data$expected_wh_workers, na.rm = TRUE)
-global_acc_SMR_workers <- sum(model_data$acc_overal, na.rm = TRUE) / sum(model_data$expected_acc_workers, na.rm = TRUE)
-# Population
-global_vio_SMR_pop <- sum(model_data$vio_overal, na.rm = TRUE) / sum(model_data$expected_vio_pop, na.rm = TRUE)
-global_wh_SMR_pop <- sum(model_data$wh_overa_5, na.rm = TRUE) / sum(model_data$expected_wh_pop, na.rm = TRUE)
-global_acc_SMR_pop <- sum(model_data$acc_overal, na.rm = TRUE) / sum(model_data$expected_acc_pop, na.rm = TRUE)
 
 #--Variance
-# Establishments
 n_vio_estab <- sum(!is.na(model_data$SMR_vio_estab))
 numerator_vio_estab <- sum(model_data$expected_vio_estab * (model_data$SMR_vio_estab - global_vio_SMR_estab)^2, na.rm = TRUE)
 denominator_vio_estab <- sum(model_data$expected_vio_estab, na.rm = TRUE) - global_vio_SMR_estab * (sum(model_data$expected_vio_estab, na.rm = TRUE) / n_vio_estab)
@@ -814,77 +729,23 @@ n_acc_estab <- sum(!is.na(model_data$SMR_acc_estab))
 numerator_acc_estab <- sum(model_data$expected_acc_estab * (model_data$SMR_acc_estab - global_acc_SMR_estab)^2, na.rm = TRUE)
 denominator_acc_estab <- sum(model_data$expected_acc_estab, na.rm = TRUE) - global_acc_SMR_estab * (sum(model_data$expected_acc_estab, na.rm = TRUE) / n_acc_estab)
 variance_acc_estab <- max(numerator_acc_estab / denominator_acc_estab, 0)
-# Workers
-n_vio_workers <- sum(!is.na(model_data$SMR_vio_workers))
-numerator_vio_workers <- sum(model_data$expected_vio_workers * (model_data$SMR_vio_workers - global_vio_SMR_workers)^2, na.rm = TRUE)
-denominator_vio_workers <- sum(model_data$expected_vio_workers, na.rm = TRUE) - global_vio_SMR_workers * (sum(model_data$expected_vio_workers, na.rm = TRUE) / n_vio_workers)
-variance_vio_workers <- max(numerator_vio_workers / denominator_vio_workers, 0)
-n_wh_workers <- sum(!is.na(model_data$SMR_wh_workers))
-numerator_wh_workers <- sum(model_data$expected_wh_workers * (model_data$SMR_wh_workers - global_wh_SMR_workers)^2, na.rm = TRUE)
-denominator_wh_workers <- sum(model_data$expected_wh_workers, na.rm = TRUE) - global_wh_SMR_workers * (sum(model_data$expected_wh_workers, na.rm = TRUE) / n_wh_workers)
-variance_wh_workers <- max(numerator_wh_workers / denominator_wh_workers, 0)
-n_acc_workers <- sum(!is.na(model_data$SMR_acc_workers))
-numerator_acc_workers <- sum(model_data$expected_acc_workers * (model_data$SMR_acc_workers - global_acc_SMR_workers)^2, na.rm = TRUE)
-denominator_acc_workers <- sum(model_data$expected_acc_workers, na.rm = TRUE) - global_acc_SMR_workers * (sum(model_data$expected_acc_workers, na.rm = TRUE) / n_acc_workers)
-variance_acc_workers <- max(numerator_acc_workers / denominator_acc_workers, 0)
-# Population
-n_vio_pop <- sum(!is.na(model_data$SMR_vio_pop))
-numerator_vio_pop <- sum(model_data$expected_vio_pop * (model_data$SMR_vio_pop - global_vio_SMR_pop)^2, na.rm = TRUE)
-denominator_vio_pop <- sum(model_data$expected_vio_pop, na.rm = TRUE) - global_vio_SMR_pop * (sum(model_data$expected_vio_pop, na.rm = TRUE) / n_vio_pop)
-variance_vio_pop <- max(numerator_vio_pop / denominator_vio_pop, 0)
-n_wh_pop <- sum(!is.na(model_data$SMR_wh_pop))
-numerator_wh_pop <- sum(model_data$expected_wh_pop * (model_data$SMR_wh_pop - global_wh_SMR_pop)^2, na.rm = TRUE)
-denominator_wh_pop <- sum(model_data$expected_wh_pop, na.rm = TRUE) - global_wh_SMR_pop * (sum(model_data$expected_wh_pop, na.rm = TRUE) / n_wh_pop)
-variance_wh_pop <- max(numerator_wh_pop / denominator_wh_pop, 0)
-n_acc_pop <- sum(!is.na(model_data$SMR_acc_pop))
-numerator_acc_pop <- sum(model_data$expected_acc_pop * (model_data$SMR_acc_pop - global_acc_SMR_pop)^2, na.rm = TRUE)
-denominator_acc_pop <- sum(model_data$expected_acc_pop, na.rm = TRUE) - global_acc_SMR_pop * (sum(model_data$expected_acc_pop, na.rm = TRUE) / n_acc_pop)
-variance_acc_pop <- max(numerator_acc_pop / denominator_acc_pop, 0)
 
 #--Alpha parameter
-# Establishment
 alpha_vio_estab <- global_vio_SMR_estab^2 / variance_vio_estab 
 alpha_wh_estab <- global_wh_SMR_estab^2 / variance_wh_estab
 alpha_acc_estab <- global_acc_SMR_estab^2 / variance_acc_estab
-# Workers
-alpha_vio_workers <- global_vio_SMR_workers^2 / variance_vio_workers
-alpha_wh_workers <- global_wh_SMR_workers^2 / variance_wh_workers
-alpha_acc_workers <- global_acc_SMR_workers^2 / variance_acc_workers
-# Population
-alpha_vio_pop <- global_vio_SMR_pop^2 / variance_vio_pop
-alpha_wh_pop <- global_wh_SMR_pop^2 / variance_wh_pop
-alpha_acc_pop <- global_acc_SMR_pop^2 / variance_acc_pop
 
 #--Beta parameter
-# Establishment
 beta_vio_estab <- global_vio_SMR_estab / variance_vio_estab
 beta_wh_estab <- global_wh_SMR_estab / variance_wh_estab
 beta_acc_estab <- global_acc_SMR_estab / variance_acc_estab
-# Workers
-beta_vio_workers <- global_vio_SMR_workers / variance_vio_workers
-beta_wh_workers <- global_wh_SMR_workers / variance_wh_workers
-beta_acc_workers <- global_acc_SMR_workers / variance_acc_workers
-# Population
-beta_vio_pop <- global_vio_SMR_pop / variance_vio_pop
-beta_wh_pop <- global_wh_SMR_pop / variance_wh_pop
-beta_acc_pop <- global_acc_SMR_pop / variance_acc_pop
 
 filtered_smr_data <- model_data %>%
-  filter(expected_vio_estab >= 1.0 | expected_wh_estab >= 1.0 | expected_acc_estab >= 1.0 |
-         expected_vio_workers >= 1.0 | expected_wh_workers >= 1.0 | expected_acc_workers >= 1.0 |
-         expected_vio_pop >= 1.0 | expected_wh_pop >= 1.0 | expected_acc_pop >= 1.0) %>%
+  filter(expected_vio_estab >= 1.0 | expected_wh_estab >= 1.0 | expected_acc_estab >= 1.0) %>% 
   mutate(
     EB_vio_SMR_estab = ifelse(expected_vio_estab >= 1, (vio_overal + alpha_vio_estab) / (expected_vio_estab + beta_vio_estab), NA),
     EB_wh_SMR_estab = ifelse(expected_wh_estab >= 1, (wh_overa_5 + alpha_wh_estab) / (expected_wh_estab + beta_wh_estab), NA),
-    EB_acc_SMR_estab = ifelse(expected_acc_estab >= 1, (acc_overal + alpha_acc_estab) / (expected_acc_estab + beta_acc_estab), NA),
-    
-    EB_vio_SMR_workers = ifelse(expected_vio_workers >= 1, (vio_overal + alpha_vio_workers) / (expected_vio_workers + beta_vio_workers), NA),
-    EB_wh_SMR_workers = ifelse(expected_wh_workers >= 1, (wh_overa_5 + alpha_wh_workers) / (expected_wh_workers + beta_wh_workers), NA),
-    EB_acc_SMR_workers = ifelse(expected_acc_workers >= 1, (acc_overal + alpha_acc_workers) / (expected_acc_workers + beta_acc_workers), NA),
-    
-    EB_vio_SMR_pop = ifelse(expected_vio_pop >= 1, (vio_overal + alpha_vio_pop) / (expected_vio_pop + beta_vio_pop), NA),
-    EB_wh_SMR_pop = ifelse(expected_wh_pop >= 1, (wh_overa_5 + alpha_wh_pop) / (expected_wh_pop + beta_wh_pop), NA),
-    EB_acc_SMR_pop = ifelse(expected_acc_pop >= 1, (acc_overal + alpha_acc_pop) / (expected_acc_pop + beta_acc_pop), NA)
+    EB_acc_SMR_estab = ifelse(expected_acc_estab >= 1, (acc_overal + alpha_acc_estab) / (expected_acc_estab + beta_acc_estab), NA)
   )
 
 #--------Poisson distributed bootstrap standard errors
@@ -894,17 +755,7 @@ boot_vio_estab <- matrix(NA, nrow = nrow(filtered_smr_data), ncol = n_boot)
 boot_wh_estab <- matrix(NA, nrow = nrow(filtered_smr_data), ncol = n_boot)
 boot_acc_estab <- matrix(NA, nrow = nrow(filtered_smr_data), ncol = n_boot)
 
-boot_vio_workers <- matrix(NA, nrow = nrow(filtered_smr_data), ncol = n_boot)
-boot_wh_workers <- matrix(NA, nrow = nrow(filtered_smr_data), ncol = n_boot)
-boot_acc_workers <- matrix(NA, nrow = nrow(filtered_smr_data), ncol = n_boot)
-
-boot_vio_pop <- matrix(NA, nrow = nrow(filtered_smr_data), ncol = n_boot)
-boot_wh_pop <- matrix(NA, nrow = nrow(filtered_smr_data), ncol = n_boot)
-boot_acc_pop <- matrix(NA, nrow = nrow(filtered_smr_data), ncol = n_boot)
-
 for (i in 1:nrow(filtered_smr_data)) {
-  
-  # Establishments denom
   if (!is.na(filtered_smr_data$EB_vio_SMR_estab[i])) {
     for (b in 1:n_boot) {
       sim_vio <- rpois(1, filtered_smr_data$expected_vio_estab[i] * filtered_smr_data$EB_vio_SMR_estab[i])
@@ -926,175 +777,39 @@ for (i in 1:nrow(filtered_smr_data)) {
                               (filtered_smr_data$expected_acc_estab[i] + beta_acc_estab)
     }
   }
-  
-  # Worker population as denom
-  if (!is.na(filtered_smr_data$EB_vio_SMR_workers[i])) {
-    for (b in 1:n_boot) {
-      sim_vio <- rpois(1, filtered_smr_data$expected_vio_workers[i] * filtered_smr_data$EB_vio_SMR_workers[i])
-      boot_vio_workers[i, b] <- (sim_vio + alpha_vio_workers) / 
-                                (filtered_smr_data$expected_vio_workers[i] + beta_vio_workers)
-    }
-  }
-  if (!is.na(filtered_smr_data$EB_wh_SMR_workers[i])) {
-    for (b in 1:n_boot) {
-      sim_wh <- rpois(1, filtered_smr_data$expected_wh_workers[i] * filtered_smr_data$EB_wh_SMR_workers[i])
-      boot_wh_workers[i, b] <- (sim_wh + alpha_wh_workers) / 
-                               (filtered_smr_data$expected_wh_workers[i] + beta_wh_workers)
-    }
-  }
-  if (!is.na(filtered_smr_data$EB_acc_SMR_workers[i])) {
-    for (b in 1:n_boot) {
-      sim_acc <- rpois(1, filtered_smr_data$expected_acc_workers[i] * filtered_smr_data$EB_acc_SMR_workers[i])
-      boot_acc_workers[i, b] <- (sim_acc + alpha_acc_workers) / 
-                                (filtered_smr_data$expected_acc_workers[i] + beta_acc_workers)
-    }
-  }
-  
-  # Pop as denom
-  if (!is.na(filtered_smr_data$EB_vio_SMR_pop[i])) {
-    for (b in 1:n_boot) {
-      sim_vio <- rpois(1, filtered_smr_data$expected_vio_pop[i] * filtered_smr_data$EB_vio_SMR_pop[i])
-      boot_vio_pop[i, b] <- (sim_vio + alpha_vio_pop) / 
-                            (filtered_smr_data$expected_vio_pop[i] + beta_vio_pop)
-    }
-  }
-  if (!is.na(filtered_smr_data$EB_wh_SMR_pop[i])) {
-    for (b in 1:n_boot) {
-      sim_wh <- rpois(1, filtered_smr_data$expected_wh_pop[i] * filtered_smr_data$EB_wh_SMR_pop[i])
-      boot_wh_pop[i, b] <- (sim_wh + alpha_wh_pop) / 
-                           (filtered_smr_data$expected_wh_pop[i] + beta_wh_pop)
-    }
-  }
-  if (!is.na(filtered_smr_data$EB_acc_SMR_pop[i])) {
-    for (b in 1:n_boot) {
-      sim_acc <- rpois(1, filtered_smr_data$expected_acc_pop[i] * filtered_smr_data$EB_acc_SMR_pop[i])
-      boot_acc_pop[i, b] <- (sim_acc + alpha_acc_pop) / 
-                            (filtered_smr_data$expected_acc_pop[i] + beta_acc_pop)
-    }
-  }
 }
 
 filtered_smr_data <- filtered_smr_data %>%
   mutate(
-    # Estabs
-    EB_vio_lower_estab = ifelse(!is.na(EB_vio_SMR_estab), 
-                                apply(boot_vio_estab, 1, quantile, 0.025, na.rm = TRUE), NA),
-    EB_vio_upper_estab = ifelse(!is.na(EB_vio_SMR_estab), 
-                                apply(boot_vio_estab, 1, quantile, 0.975, na.rm = TRUE), NA),
-    EB_wh_lower_estab = ifelse(!is.na(EB_wh_SMR_estab), 
-                               apply(boot_wh_estab, 1, quantile, 0.025, na.rm = TRUE), NA),
-    EB_wh_upper_estab = ifelse(!is.na(EB_wh_SMR_estab), 
-                               apply(boot_wh_estab, 1, quantile, 0.975, na.rm = TRUE), NA),
-    EB_acc_lower_estab = ifelse(!is.na(EB_acc_SMR_estab), 
-                                apply(boot_acc_estab, 1, quantile, 0.025, na.rm = TRUE), NA),
-    EB_acc_upper_estab = ifelse(!is.na(EB_acc_SMR_estab), 
-                                apply(boot_acc_estab, 1, quantile, 0.975, na.rm = TRUE), NA),
-    
-    # Worker
-    EB_vio_lower_workers = ifelse(!is.na(EB_vio_SMR_workers), 
-                                  apply(boot_vio_workers, 1, quantile, 0.025, na.rm = TRUE), NA),
-    EB_vio_upper_workers = ifelse(!is.na(EB_vio_SMR_workers), 
-                                  apply(boot_vio_workers, 1, quantile, 0.975, na.rm = TRUE), NA),
-    EB_wh_lower_workers = ifelse(!is.na(EB_wh_SMR_workers), 
-                                 apply(boot_wh_workers, 1, quantile, 0.025, na.rm = TRUE), NA),
-    EB_wh_upper_workers = ifelse(!is.na(EB_wh_SMR_workers), 
-                                 apply(boot_wh_workers, 1, quantile, 0.975, na.rm = TRUE), NA),
-    EB_acc_lower_workers = ifelse(!is.na(EB_acc_SMR_workers), 
-                                  apply(boot_acc_workers, 1, quantile, 0.025, na.rm = TRUE), NA),
-    EB_acc_upper_workers = ifelse(!is.na(EB_acc_SMR_workers), 
-                                  apply(boot_acc_workers, 1, quantile, 0.975, na.rm = TRUE), NA),
-    
-    # Pop
-    EB_vio_lower_pop = ifelse(!is.na(EB_vio_SMR_pop), 
-                              apply(boot_vio_pop, 1, quantile, 0.025, na.rm = TRUE), NA),
-    EB_vio_upper_pop = ifelse(!is.na(EB_vio_SMR_pop), 
-                              apply(boot_vio_pop, 1, quantile, 0.975, na.rm = TRUE), NA),
-    EB_wh_lower_pop = ifelse(!is.na(EB_wh_SMR_pop), 
-                             apply(boot_wh_pop, 1, quantile, 0.025, na.rm = TRUE), NA),
-    EB_wh_upper_pop = ifelse(!is.na(EB_wh_SMR_pop), 
-                             apply(boot_wh_pop, 1, quantile, 0.975, na.rm = TRUE), NA),
-    EB_acc_lower_pop = ifelse(!is.na(EB_acc_SMR_pop), 
-                              apply(boot_acc_pop, 1, quantile, 0.025, na.rm = TRUE), NA),
-    EB_acc_upper_pop = ifelse(!is.na(EB_acc_SMR_pop), 
-                              apply(boot_acc_pop, 1, quantile, 0.975, na.rm = TRUE), NA),
-    
-    # Just determining the zip codes that have an SMR CI fully above or below 1
+    EB_vio_lower_estab = ifelse(!is.na(EB_vio_SMR_estab), apply(boot_vio_estab, 1, quantile, 0.025, na.rm = TRUE), NA),
+    EB_vio_upper_estab = ifelse(!is.na(EB_vio_SMR_estab), apply(boot_vio_estab, 1, quantile, 0.975, na.rm = TRUE), NA),
+    EB_wh_lower_estab = ifelse(!is.na(EB_wh_SMR_estab), apply(boot_wh_estab, 1, quantile, 0.025, na.rm = TRUE), NA),
+    EB_wh_upper_estab = ifelse(!is.na(EB_wh_SMR_estab), apply(boot_wh_estab, 1, quantile, 0.975, na.rm = TRUE), NA),
+    EB_acc_lower_estab = ifelse(!is.na(EB_acc_SMR_estab), apply(boot_acc_estab, 1, quantile, 0.025, na.rm = TRUE), NA),
+    EB_acc_upper_estab = ifelse(!is.na(EB_acc_SMR_estab),  apply(boot_acc_estab, 1, quantile, 0.975, na.rm = TRUE), NA),
     EB_vio_sig_estab = (EB_vio_lower_estab > 1.0) | (EB_vio_upper_estab < 1.0),
     EB_wh_sig_estab = (EB_wh_lower_estab > 1.0) | (EB_wh_upper_estab < 1.0),
-    EB_acc_sig_estab = (EB_acc_lower_estab > 1.0) | (EB_acc_upper_estab < 1.0),
-    EB_vio_sig_workers = (EB_vio_lower_workers > 1.0) | (EB_vio_upper_workers < 1.0),
-    EB_wh_sig_workers = (EB_wh_lower_workers > 1.0) | (EB_wh_upper_workers < 1.0),
-    EB_acc_sig_workers = (EB_acc_lower_workers > 1.0) | (EB_acc_upper_workers < 1.0),
-    EB_vio_sig_pop = (EB_vio_lower_pop > 1.0) | (EB_vio_upper_pop < 1.0),
-    EB_wh_sig_pop = (EB_wh_lower_pop > 1.0) | (EB_wh_upper_pop < 1.0),
-    EB_acc_sig_pop = (EB_acc_lower_pop > 1.0) | (EB_acc_upper_pop < 1.0)
+    EB_acc_sig_estab = (EB_acc_lower_estab > 1.0) | (EB_acc_upper_estab < 1.0)
   )
 
 print(paste("Establishments - Violations:", sum(filtered_smr_data$EB_vio_sig_estab, na.rm = TRUE)))
 print(paste("Establishments - Workplace Hazards:", sum(filtered_smr_data$EB_wh_sig_estab, na.rm = TRUE)))
 print(paste("Establishments - Accidents:", sum(filtered_smr_data$EB_acc_sig_estab, na.rm = TRUE)))
 
-print(paste("Workers - Violations:", sum(filtered_smr_data$EB_vio_sig_workers, na.rm = TRUE)))
-print(paste("Workers - Workplace Hazards:", sum(filtered_smr_data$EB_wh_sig_workers, na.rm = TRUE)))
-print(paste("Workers - Accidents:", sum(filtered_smr_data$EB_acc_sig_workers, na.rm = TRUE)))
-
-print(paste("Population - Violations:", sum(filtered_smr_data$EB_vio_sig_pop, na.rm = TRUE)))
-print(paste("Population - Workplace Hazards:", sum(filtered_smr_data$EB_wh_sig_pop, na.rm = TRUE)))
-print(paste("Population - Accidents:", sum(filtered_smr_data$EB_acc_sig_pop, na.rm = TRUE)))
-
-
-#-------Compare Raw vs Empirical Bayes Results - Smoothing should not be that crazy as we remove zip codes with less than 1 of any given denom
+# #-------Compare Raw vs Empirical Bayes Results - Smoothing should not be that crazy as we remove zip codes with less than 1 of any given denom
 comparison_estab <- filtered_smr_data %>%
  st_drop_geometry() %>%
  group_by(region_8) %>%
  summarise(
    regional_SMR_vio = weighted.mean(SMR_vio_estab, w = expected_vio_estab, na.rm = TRUE),
    regional_EB_vio = weighted.mean(EB_vio_SMR_estab, w = expected_vio_estab, na.rm = TRUE),
-   
    regional_SMR_wh = weighted.mean(SMR_wh_estab, w = expected_wh_estab, na.rm = TRUE),
    regional_EB_wh = weighted.mean(EB_wh_SMR_estab, w = expected_wh_estab, na.rm = TRUE),
-   
    regional_SMR_acc = weighted.mean(SMR_acc_estab, w = expected_acc_estab, na.rm = TRUE),
    regional_EB_acc = weighted.mean(EB_acc_SMR_estab, w = expected_acc_estab, na.rm = TRUE),
    .groups = 'drop'
  ) %>%
  arrange(desc(regional_SMR_vio))
-
-comparison_workers <- filtered_smr_data %>%
- st_drop_geometry() %>%
- group_by(region_8) %>%
- summarise(
-   regional_SMR_vio = weighted.mean(SMR_vio_workers, w = expected_vio_workers, na.rm = TRUE),
-   regional_EB_vio = weighted.mean(EB_vio_SMR_workers, w = expected_vio_workers, na.rm = TRUE),
-   
-   regional_SMR_wh = weighted.mean(SMR_wh_workers, w = expected_wh_workers, na.rm = TRUE),
-   regional_EB_wh = weighted.mean(EB_wh_SMR_workers, w = expected_wh_workers, na.rm = TRUE),
-   
-   regional_SMR_acc = weighted.mean(SMR_acc_workers, w = expected_acc_workers, na.rm = TRUE),
-   regional_EB_acc = weighted.mean(EB_acc_SMR_workers, w = expected_acc_workers, na.rm = TRUE),
-   .groups = 'drop'
- ) %>%
- arrange(desc(regional_SMR_vio))
-
-comparison_pop <- filtered_smr_data %>%
- st_drop_geometry() %>%
- group_by(region_8) %>%
- summarise(
-   regional_SMR_vio = weighted.mean(SMR_vio_pop, w = expected_vio_pop, na.rm = TRUE),
-   regional_EB_vio = weighted.mean(EB_vio_SMR_pop, w = expected_vio_pop, na.rm = TRUE),
-   
-   regional_SMR_wh = weighted.mean(SMR_wh_pop, w = expected_wh_pop, na.rm = TRUE),
-   regional_EB_wh = weighted.mean(EB_wh_SMR_pop, w = expected_wh_pop, na.rm = TRUE),
-   
-   regional_SMR_acc = weighted.mean(SMR_acc_pop, w = expected_acc_pop, na.rm = TRUE),
-   regional_EB_acc = weighted.mean(EB_acc_SMR_pop, w = expected_acc_pop, na.rm = TRUE),
-   .groups = 'drop'
- ) %>%
- arrange(desc(regional_SMR_vio))
-
-print(comparison_estab, n = Inf, width = Inf)
-print(comparison_workers, n = Inf, width = Inf)
-print(comparison_pop, n = Inf, width = Inf)
 
 region_summary$regional_EB_vio_estab <- comparison_estab$regional_EB_vio[match(region_summary$region, comparison_estab$region_8)]
 region_summary$regional_EB_wh_estab <- comparison_estab$regional_EB_wh[match(region_summary$region, comparison_estab$region_8)]
@@ -1189,20 +904,64 @@ write.csv(regional_summary_formatted, file = file.path(output_folder, "region_su
 
 #-------Visuals
 
-# Create SMR lookup and join to full data
+# Join the SMRs with the spatial data to map them
 smr_lookup <- filtered_smr_data %>%
   st_drop_geometry() %>%
   dplyr::select(zip_id, starts_with("EB_"), starts_with("SMR_"))
+
 model_data_with_smrs <- model_data %>%
   mutate(zip_id = as.character(zip_id)) %>%
   left_join(smr_lookup %>% mutate(zip_id = as.character(zip_id)), by = "zip_id")
+
 model_data_with_smrs <- st_as_sf(model_data_with_smrs, sf_column_name = "geometry")
+
 contiguous_states <- setdiff(levels(model_data_with_smrs$state), c("AK", "HI", "PR", "DC"))
+
 model_data_contiguous <- model_data_with_smrs %>%
   subset(state %in% contiguous_states) %>%
   dplyr::filter(!st_is_empty(geometry)) %>%
   st_transform(5070)
 
+vio_quantiles <- quantile(model_data_contiguous$EB_vio_SMR_estab, probs = c(0, 0.2, 0.4, 0.6, 0.8, 1.0), na.rm = TRUE)
+vio_smr_plot <- ggplot(model_data_contiguous) +
+  geom_sf(aes(fill = EB_vio_SMR_estab, geometry = geometry), color = "darkgrey", linewidth = .002) +
+  scale_fill_distiller(
+    palette = "Blues", na.value = "grey90", direction = 1,
+    breaks = vio_quantiles, limits = c(0, 2),
+    guide = guide_colorbar(label = TRUE, title = NULL, label.theme = element_text(size = 8, angle = 45), barwidth = unit(10, "cm"), barheight = unit(0.6, "cm"))) +
+  theme_void() +
+  theme(legend.position = 'bottom') +
+  labs(title = "Violations SMR (Establishments)")
+
+wh_quantiles <- quantile(model_data_contiguous$EB_wh_SMR_estab, probs = c(0, 0.2, 0.4, 0.6, 0.8, 1.0), na.rm = TRUE)
+wage_smr_plot <- ggplot(model_data_contiguous) +
+  geom_sf(aes(fill = EB_wh_SMR_estab, geometry = geometry), color = "darkgrey", linewidth = .002) +
+  scale_fill_distiller(
+    palette = "Reds", na.value = "grey90", direction = 1,
+    breaks = wh_quantiles, limits = c(0, 2),
+    guide = guide_colorbar(label = TRUE, title = NULL, label.theme = element_text(size = 8, angle = 45), barwidth = unit(10, "cm"), barheight = unit(0.6, "cm"))) +
+  theme_void() +
+  theme(legend.position = 'bottom') +
+  labs(title = "Wage & Hour SMR (Establishments)")
+
+acc_quantiles <- quantile(model_data_contiguous$EB_acc_SMR_estab, probs = c(0, 0.2, 0.4, 0.6, 0.8, 1.0), na.rm = TRUE)
+acc_smr_plot <- ggplot(model_data_contiguous) +
+  geom_sf(aes(fill = EB_acc_SMR_estab, geometry = geometry), color = "darkgrey", linewidth = .002) +
+  scale_fill_distiller(
+    palette = "Greens", na.value = "grey90", direction = 1,
+    breaks = acc_quantiles, limits = c(0, 2),
+    guide = guide_colorbar(label = TRUE, title = NULL,label.theme = element_text(size = 8, angle = 45), barwidth = unit(10, "cm"), barheight = unit(0.6, "cm"))) +
+  theme_void() +
+  theme(legend.position = 'bottom') +
+  labs(title = "Accident Rate SMR (Establishments)")
+
+top <- plot_grid(vio_smr_plot, wage_smr_plot, ncol = 2)
+bottom <- plot_grid(NULL, acc_smr_plot, NULL,ncol = 3, rel_widths = c(1, 2, 1)) 
+smr_combined_plot <- plot_grid(top, bottom, ncol = 1, rel_heights = c(1, 1))
+
+ggsave(file.path(output_folder, "smr_maps.png"), plot = smr_combined_plot, width = 10, height = 8, dpi = 300)
+
+#-----Significance maps
 model_data_contiguous <- model_data_contiguous %>%
   dplyr::mutate(
     vio_sig_cat = case_when(
@@ -1225,90 +984,13 @@ model_data_contiguous <- model_data_contiguous %>%
     )
   )
 
-vio_quantiles <- quantile(model_data_contiguous$EB_vio_SMR_estab, 
-                         probs = c(0, 0.2, 0.4, 0.6, 0.8, 1.0), na.rm = TRUE)
-
-wh_quantiles <- quantile(model_data_contiguous$EB_wh_SMR_estab, 
-                        probs = c(0, 0.2, 0.4, 0.6, 0.8, 1.0), na.rm = TRUE)
-acc_quantiles <- quantile(model_data_contiguous$EB_acc_SMR_estab, 
-                         probs = c(0, 0.2, 0.4, 0.6, 0.8, 1.0), na.rm = TRUE)
-
-
-vio_smr_plot <- ggplot(model_data_contiguous) +
-  geom_sf(aes(fill = EB_vio_SMR_estab, geometry = geometry), color = "darkgrey", linewidth = .002) +
-  scale_fill_distiller(
-    palette = "Blues", na.value = "grey90", direction = 1,
-    breaks = vio_quantiles, limits = c(0, 2),
-    guide = guide_colorbar(
-      label = TRUE, title = NULL,
-      label.theme = element_text(size = 8, angle = 45),
-      barwidth = unit(10, "cm"), barheight = unit(0.6, "cm")  # Make color bar longer
-    )
-  ) +
-  theme_void() +
-  theme(legend.position = 'bottom') +
-  labs(title = "Violations SMR (Establishments)")
-
-wage_smr_plot <- ggplot(model_data_contiguous) +
-  geom_sf(aes(fill = EB_wh_SMR_estab, geometry = geometry), color = "darkgrey", linewidth = .002) +
-  scale_fill_distiller(
-    palette = "Reds", na.value = "grey90", direction = 1,
-    breaks = wh_quantiles, limits = c(0, 2),
-    guide = guide_colorbar(
-      label = TRUE, title = NULL,
-      label.theme = element_text(size = 8, angle = 45),
-      barwidth = unit(10, "cm"), barheight = unit(0.6, "cm")  # Make color bar longer
-    )
-  ) +
-  theme_void() +
-  theme(legend.position = 'bottom') +
-  labs(title = "Wage & Hour SMR (Establishments)")
-
-acc_smr_plot <- ggplot(model_data_contiguous) +
-  geom_sf(aes(fill = EB_acc_SMR_estab, geometry = geometry), color = "darkgrey", linewidth = .002) +
-  scale_fill_distiller(
-    palette = "Greens", na.value = "grey90", direction = 1,
-    breaks = acc_quantiles, limits = c(0, 2),
-    guide = guide_colorbar(
-      label = TRUE, title = NULL,
-      label.theme = element_text(size = 8, angle = 45),
-      barwidth = unit(10, "cm"), barheight = unit(0.6, "cm")  # Make color bar longer
-    )
-  ) +
-  theme_void() +
-  theme(legend.position = 'bottom') +
-  labs(title = "Accident Rate SMR (Establishments)")
-
-top <- plot_grid(vio_smr_plot, wage_smr_plot, ncol = 2)
-
-bottom <- plot_grid(NULL, acc_smr_plot, NULL,
-                    ncol = 3, rel_widths = c(1, 2, 1)) 
-
-smr_combined_plot <- plot_grid(top, bottom, ncol = 1, rel_heights = c(1, 1))
-
-ggsave(
-  file.path(output_folder, "smr_maps.png"),
-  plot = smr_combined_plot,
-  width = 10, height = 8, dpi = 300
-)
-
 vio_sig_map <- ggplot(model_data_contiguous) +
   geom_sf(aes(fill = vio_sig_cat, geometry = geometry), color = "darkgrey", linewidth = .002) +
   scale_fill_manual(
     name = "Significance",
-    values = c("High" = "#08519c",    # Dark blue
-               "Non-Sig" = "#f7f7f7",       # Neutral grey/white
-               "Low" = "#c6dbef",     # Light blue
-               "No Data" = "grey90"),
+    values = c("High" = "#08519c", "Non-Sig" = "#f7f7f7", "Low" = "#c6dbef", "No Data" = "grey90"),
     na.value = "grey90",
-    guide = guide_legend(
-      title = NULL,
-      label.theme = element_text(size = 8),
-      keywidth = unit(1.5, "cm"),
-      keyheight = unit(0.5, "cm"),
-      nrow = 1
-    )
-  ) +
+    guide = guide_legend(title = NULL, label.theme = element_text(size = 8), keywidth = unit(1.5, "cm"), keyheight = unit(0.5, "cm"), nrow = 1)) +
   theme_void() +
   theme(legend.position = "bottom") +
   labs(title = "Violations Significance")
@@ -1317,19 +999,9 @@ wh_sig_map <- ggplot(model_data_contiguous) +
   geom_sf(aes(fill = wh_sig_cat, geometry = geometry), color = "darkgrey", linewidth = .002) +
   scale_fill_manual(
     name = "Significance",
-    values = c("High" = "#a50f15",    # Dark red
-               "Non-Sig" = "#f7f7f7",       # Neutral grey/white
-               "Low" = "#fcbba1",     # Light red
-               "No Data" = "grey90"),
+    values = c("High" = "#a50f15", "Non-Sig" = "#f7f7f7", "Low" = "#fcbba1", "No Data" = "grey90"),
     na.value = "grey90",
-    guide = guide_legend(
-      title = NULL,
-      label.theme = element_text(size = 8),
-      keywidth = unit(1.5, "cm"),
-      keyheight = unit(0.5, "cm"),
-      nrow = 1
-    )
-  ) +
+    guide = guide_legend(title = NULL, label.theme = element_text(size = 8), keywidth = unit(1.5, "cm"), keyheight = unit(0.5, "cm"), nrow = 1)) +
   theme_void() +
   theme(legend.position = "bottom") +
   labs(title = "Wage & Hour Significance")
@@ -1338,19 +1010,9 @@ acc_sig_map <- ggplot(model_data_contiguous) +
   geom_sf(aes(fill = acc_sig_cat, geometry = geometry), color = "darkgrey", linewidth = .002) +
   scale_fill_manual(
     name = "Significance",
-    values = c("High" = "#238b45",    # Dark green
-               "Non-Sig" = "#f7f7f7",       # Neutral grey/white
-               "Low" = "#c7e9c0",     # Light green
-               "No Data" = "grey90"),
+    values = c("High" = "#238b45", "Non-Sig" = "#f7f7f7", "Low" = "#c7e9c0", "No Data" = "grey90"),
     na.value = "grey90",
-    guide = guide_legend(
-      title = NULL,
-      label.theme = element_text(size = 8),
-      keywidth = unit(1.5, "cm"),
-      keyheight = unit(0.5, "cm"),
-      nrow = 1
-    )
-  ) +
+    guide = guide_legend(title = NULL, label.theme = element_text(size = 8), keywidth = unit(1.5, "cm"), keyheight = unit(0.5, "cm"), nrow = 1)) +
   theme_void() +
   theme(legend.position = "bottom") +
   labs(title = "Accidents Significance")
@@ -1358,24 +1020,9 @@ acc_sig_map <- ggplot(model_data_contiguous) +
 top_sig <- plot_grid(vio_sig_map, wh_sig_map, ncol = 2)
 bottom_sig <- plot_grid(NULL, acc_sig_map, NULL, ncol = 3, rel_widths = c(1, 2, 1))
 sig_combined_plot <- plot_grid(top_sig, bottom_sig, ncol = 1, rel_heights = c(1, 1))
+
 ggsave(filename = file.path(output_folder, "smr_sig_maps.png"), plot = sig_combined_plot, width = 10, height = 8, dpi = 300)
 
-
-# Combining SMR and significance plots into one figure
-# Top: Regular SMR maps
-combined_top <- plot_grid(vio_smr_plot, wage_smr_plot, acc_smr_plot, ncol = 3)
-# Bottom: Significance maps
-combined_bottom <- plot_grid(vio_sig_map, wh_sig_map, acc_sig_map, ncol = 3)
-final_combined_plot <- plot_grid(
-  combined_top, combined_bottom, ncol = 1, rel_heights = c(1, 1),
-  top = textGrob("Figure 1: Standardized Mortality Ratios and Statistical Significance of Labor Violations by Zip Code",
-                 gp = gpar(fontsize = 16, fontface = "bold"))
-)
-ggsave(
-  file.path(output_folder, "smr_and_sig_maps.png"),
-  plot = final_combined_plot,
-  width = 12, height = 10, dpi = 300
-)
 ##==================================================##
 ##     7. REGIONAL VARIATION IN INDUSTRY RISK       ##
 ##==================================================##
@@ -1428,7 +1075,6 @@ continuous_interactions <- bind_rows(
 #----Visualizing the interaction models
 industry_region_interactions <- bind_rows(binary_interactions, continuous_interactions)
 
-
 industry_names <- c(
   "ESTAB_11_P" = "Agriculture",
   "ESTAB_21_P" = "Mining",
@@ -1478,16 +1124,6 @@ for(i in 1:length(tables_list)) {
 combined_table <- do.call(rbind, tables_list)
 combined_table$industry_name <- rownames(combined_table)
 write.csv(combined_table, file = file.path(output_folder, "industry_region_interactions_full_table.csv"), row.names = FALSE)
-
-big_table <- kable(combined_table, 
-                   format = "html", 
-                   caption = "Industry-Region Interactions") %>%
-  kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
-                full_width = TRUE) %>%
-  add_header_above(c(" " = 2, "Regions" = ncol(combined_table) - 1)) %>%
-  column_spec(1, bold = TRUE) %>%
-  footnote(symbol = "* indicates statistical significance at p < 0.05") %>%
-  cat(output_folder, file="interaction_table.html")
 
 # Making the final table
 industry_abbrev <- c(

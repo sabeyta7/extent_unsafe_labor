@@ -9,7 +9,8 @@
 !code/extent_unsafe_labor.R
 !code/functions.R
 !code/sensitivity.R
-
+code/comparing_smr_denom.R
+    
 # Ignore all data files (download from Zenodo)
 data/*
 
