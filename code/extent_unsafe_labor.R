@@ -10,6 +10,7 @@ library(tidyr)
 library(spdep)
 library(gridExtra)
 library(patchwork)
+library(rmapshaper)
 
 # Set up directories
 current_dir <- getwd()
@@ -922,37 +923,51 @@ model_data_contiguous <- model_data_with_smrs %>%
   dplyr::filter(!st_is_empty(geometry)) %>%
   st_transform(5070)
 
+# Build region boundaries from contiguous state data
+region_boundaries <- model_data_contiguous %>%
+  sf::st_drop_geometry() %>%
+  dplyr::distinct(state, region_8) %>%
+  dplyr::left_join(tigris::states(cb = TRUE), by = c("state" = "STUSPS")) %>%
+  sf::st_as_sf() %>%
+  dplyr::group_by(region_8) %>%
+  dplyr::summarise(geometry = sf::st_union(geometry), .groups = "drop")%>%
+  st_transform(5070)
+plot(region_boundaries)
+
 vio_quantiles <- quantile(model_data_contiguous$EB_vio_SMR_estab, probs = c(0, 0.2, 0.4, 0.6, 0.8, 1.0), na.rm = TRUE)
 vio_smr_plot <- ggplot(model_data_contiguous) +
-  geom_sf(aes(fill = EB_vio_SMR_estab, geometry = geometry), color = "darkgrey", linewidth = .002) +
+  geom_sf(aes(fill = EB_vio_SMR_estab, geometry = geometry), color = NA) +
+  geom_sf(data = region_boundaries, aes(geometry = geometry), fill = NA, color = "black", linewidth = 0.4) +
   scale_fill_distiller(
     palette = "Blues", na.value = "grey90", direction = 1,
     breaks = vio_quantiles, limits = c(0, 2),
     guide = guide_colorbar(label = TRUE, title = NULL, label.theme = element_text(size = 8, angle = 45), barwidth = unit(10, "cm"), barheight = unit(0.6, "cm"))) +
   theme_void() +
-  theme(legend.position = 'bottom') +
+  theme(legend.position = 'bottom', text = element_text(family = "Serif")) +
   labs(title = "Violations SMR (Establishments)")
 
 wh_quantiles <- quantile(model_data_contiguous$EB_wh_SMR_estab, probs = c(0, 0.2, 0.4, 0.6, 0.8, 1.0), na.rm = TRUE)
 wage_smr_plot <- ggplot(model_data_contiguous) +
   geom_sf(aes(fill = EB_wh_SMR_estab, geometry = geometry), color = "darkgrey", linewidth = .002) +
+  geom_sf(data = region_boundaries, aes(geometry = geometry), fill = NA, color = "black", linewidth = 0.4) +
   scale_fill_distiller(
     palette = "Reds", na.value = "grey90", direction = 1,
     breaks = wh_quantiles, limits = c(0, 2),
     guide = guide_colorbar(label = TRUE, title = NULL, label.theme = element_text(size = 8, angle = 45), barwidth = unit(10, "cm"), barheight = unit(0.6, "cm"))) +
   theme_void() +
-  theme(legend.position = 'bottom') +
+  theme(legend.position = 'bottom', text = element_text(family = "Serif")) +
   labs(title = "Wage & Hour SMR (Establishments)")
 
 acc_quantiles <- quantile(model_data_contiguous$EB_acc_SMR_estab, probs = c(0, 0.2, 0.4, 0.6, 0.8, 1.0), na.rm = TRUE)
 acc_smr_plot <- ggplot(model_data_contiguous) +
   geom_sf(aes(fill = EB_acc_SMR_estab, geometry = geometry), color = "darkgrey", linewidth = .002) +
+  geom_sf(data = region_boundaries, aes(geometry = geometry), fill = NA, color = "black", linewidth = 0.4) +
   scale_fill_distiller(
     palette = "Greens", na.value = "grey90", direction = 1,
     breaks = acc_quantiles, limits = c(0, 2),
     guide = guide_colorbar(label = TRUE, title = NULL,label.theme = element_text(size = 8, angle = 45), barwidth = unit(10, "cm"), barheight = unit(0.6, "cm"))) +
   theme_void() +
-  theme(legend.position = 'bottom') +
+  theme(legend.position = 'bottom', text = element_text(family = "Serif")) +
   labs(title = "Accident Rate SMR (Establishments)")
 
 top <- plot_grid(vio_smr_plot, wage_smr_plot, ncol = 2)
@@ -968,54 +983,57 @@ model_data_contiguous <- model_data_contiguous %>%
       is.na(EB_vio_lower_estab) | is.na(EB_vio_upper_estab) ~ "No Data",
       EB_vio_lower_estab > 1.0 ~ "High",
       EB_vio_upper_estab < 1.0 ~ "Low",
-      TRUE ~ "Non-Sig"
+      TRUE ~ "CI Includes 1"
     ),
     wh_sig_cat = case_when(
       is.na(EB_wh_lower_estab) | is.na(EB_wh_upper_estab) ~ "No Data",
       EB_wh_lower_estab > 1.0 ~ "High",
       EB_wh_upper_estab < 1.0 ~ "Low",
-      TRUE ~ "Non-Sig"
+      TRUE ~ "CI Includes 1"
     ),
     acc_sig_cat = case_when(
       is.na(EB_acc_lower_estab) | is.na(EB_acc_upper_estab) ~ "No Data",
       EB_acc_lower_estab > 1.0 ~ "High",
       EB_acc_upper_estab < 1.0 ~ "Low",
-      TRUE ~ "Non-Sig"
+      TRUE ~ "CI Includes 1"
     )
   )
 
 vio_sig_map <- ggplot(model_data_contiguous) +
   geom_sf(aes(fill = vio_sig_cat, geometry = geometry), color = "darkgrey", linewidth = .002) +
+  geom_sf(data = region_boundaries, aes(geometry = geometry), fill = NA, color = "black", linewidth = 0.4) +
   scale_fill_manual(
-    name = "Significance",
-    values = c("High" = "#08519c", "Non-Sig" = "#f7f7f7", "Low" = "#c6dbef", "No Data" = "grey90"),
+    name = "CI Excludes 1",
+    values = c("High" = "#08519c", "CI Includes 1" = "#f7f7f7", "Low" = "#c6dbef", "No Data" = "grey90"),
     na.value = "grey90",
     guide = guide_legend(title = NULL, label.theme = element_text(size = 8), keywidth = unit(1.5, "cm"), keyheight = unit(0.5, "cm"), nrow = 1)) +
   theme_void() +
-  theme(legend.position = "bottom") +
-  labs(title = "Violations Significance")
+  theme(legend.position = "bottom", text = element_text(family = "Serif")) +
+  labs(title = "Violations CI Excludes 1")
 
 wh_sig_map <- ggplot(model_data_contiguous) +
   geom_sf(aes(fill = wh_sig_cat, geometry = geometry), color = "darkgrey", linewidth = .002) +
+  geom_sf(data = region_boundaries, aes(geometry = geometry), fill = NA, color = "black", linewidth = 0.4) +
   scale_fill_manual(
-    name = "Significance",
-    values = c("High" = "#a50f15", "Non-Sig" = "#f7f7f7", "Low" = "#fcbba1", "No Data" = "grey90"),
+    name = "CI Excludes 1",
+    values = c("High" = "#a50f15", "CI Includes 1" = "#f7f7f7", "Low" = "#fcbba1", "No Data" = "grey90"),
     na.value = "grey90",
     guide = guide_legend(title = NULL, label.theme = element_text(size = 8), keywidth = unit(1.5, "cm"), keyheight = unit(0.5, "cm"), nrow = 1)) +
   theme_void() +
-  theme(legend.position = "bottom") +
-  labs(title = "Wage & Hour Significance")
+  theme(legend.position = "bottom", text = element_text(family = "Serif")) +
+  labs(title = "Wage & Hour CI Excludes 1")
 
 acc_sig_map <- ggplot(model_data_contiguous) +
   geom_sf(aes(fill = acc_sig_cat, geometry = geometry), color = "darkgrey", linewidth = .002) +
+  geom_sf(data = region_boundaries, aes(geometry = geometry), fill = NA, color = "black", linewidth = 0.4) +
   scale_fill_manual(
-    name = "Significance",
-    values = c("High" = "#238b45", "Non-Sig" = "#f7f7f7", "Low" = "#c7e9c0", "No Data" = "grey90"),
+    name = "CI Excludes 1",
+    values = c("High" = "#238b45", "CI Includes 1" = "#f7f7f7", "Low" = "#c7e9c0", "No Data" = "grey90"),
     na.value = "grey90",
     guide = guide_legend(title = NULL, label.theme = element_text(size = 8), keywidth = unit(1.5, "cm"), keyheight = unit(0.5, "cm"), nrow = 1)) +
   theme_void() +
-  theme(legend.position = "bottom") +
-  labs(title = "Accidents Significance")
+  theme(legend.position = "bottom", text = element_text(family = "Serif")) +
+  labs(title = "Accidents CI Excludes 1")
 
 top_sig <- plot_grid(vio_sig_map, wh_sig_map, ncol = 2)
 bottom_sig <- plot_grid(NULL, acc_sig_map, NULL, ncol = 3, rel_widths = c(1, 2, 1))
@@ -1060,20 +1078,40 @@ osha_cont_interactions <- run_interaction_models(industry_vars, "vio_rate", labo
 wh_cont_interactions <- run_interaction_models(industry_vars, "wh_rate_pe", wh_positive, "wh_continuous")
 acc_cont_interactions <- run_interaction_models(industry_vars, "acc_rate", acc_positive, "acc_continuous")
 
+# Binding by outcome
+osha_interactions <- bind_rows(
+  osha_binary_interactions %>% mutate(model_type = "binary"),
+  osha_cont_interactions %>% mutate(model_type = "continuous")
+)
+
+wh_interactions <- bind_rows(
+  wh_binary_interactions %>% mutate(model_type = "binary"),
+  wh_cont_interactions %>% mutate(model_type = "continuous")
+) 
+
+acc_interactions <- bind_rows(
+  acc_binary_interactions %>% mutate(model_type = "binary"),
+  acc_cont_interactions %>% mutate(model_type = "continuous")
+)
+
 binary_interactions <- bind_rows(
-  osha_binary_interactions %>% mutate(violation_type = "OSHA Violations", model_type = "binary"),
-  wh_binary_interactions %>% mutate(violation_type = "Wage & Hour Violations", model_type = "binary"),
-  acc_binary_interactions %>% mutate(violation_type = "Accident Rate", model_type = "binary")
+  osha_binary_interactions %>% mutate(model_type = "binary"),
+  wh_binary_interactions %>% mutate(model_type = "binary"),
+  acc_binary_interactions %>% mutate(model_type = "binary")
 )
 
 continuous_interactions <- bind_rows(
-  osha_cont_interactions %>% mutate(violation_type = "OSHA Violations", model_type = "continuous"),
-  wh_cont_interactions %>% mutate(violation_type = "Wage & Hour Violations", model_type = "continuous"),
-  acc_cont_interactions %>% mutate(violation_type = "Accident Rate", model_type = "continuous")
+  osha_cont_interactions %>% mutate(model_type = "continuous"),
+  wh_cont_interactions %>% mutate(model_type = "continuous"),
+  acc_cont_interactions %>% mutate(model_type = "continuous")
 )
 
-#----Visualizing the interaction models
-industry_region_interactions <- bind_rows(binary_interactions, continuous_interactions)
+lim <- .1
+full_interactions <- bind_rows(
+  osha_interactions ,
+  wh_interactions ,
+  acc_interactions 
+)
 
 industry_names <- c(
   "ESTAB_11_P" = "Agriculture",
@@ -1097,184 +1135,188 @@ industry_names <- c(
   "ESTAB_81_P" = "Other Services"
 )
 
-industry_region_interactions$industry_name <- industry_names[industry_region_interactions$industry]
-
-tables_list <- list(
-  osha_binary = create_model_table(industry_region_interactions, "OSHA Violations", "binary"),
-  wh_binary = create_model_table(industry_region_interactions, "Wage & Hour Violations", "binary"),
-  acc_binary = create_model_table(industry_region_interactions, "Accident Rate", "binary"),
-  osha_cont = create_model_table(industry_region_interactions, "OSHA Violations", "continuous"),
-  wh_cont = create_model_table(industry_region_interactions, "Wage & Hour Violations", "continuous"),
-  acc_cont = create_model_table(industry_region_interactions, "Accident Rate", "continuous")
-)
-
-table_names <- c(
-  "OSHA Violations (Binary)",
-  "Wage & Hour Violations (Binary)",
-  "Accident Rate (Binary)",
-  "OSHA Violations (Continuous)",
-  "Wage & Hour Violations (Continuous)",
-  "Accident Rate (Continuous)"
-)
-
-for(i in 1:length(tables_list)) {
-  tables_list[[i]]$model_type <- table_names[i]
-}
-
-combined_table <- do.call(rbind, tables_list)
-combined_table$industry_name <- rownames(combined_table)
-write.csv(combined_table, file = file.path(output_folder, "industry_region_interactions_full_table.csv"), row.names = FALSE)
-
-# Making the final table
-industry_abbrev <- c(
-  "Accommodation & Food" = "Accom",
-  "Administrative Services" = "Admin", 
-  "Agriculture" = "Agric",
-  "Arts & Entertainment" = "Arts",
-  "Construction" = "Const",
-  "Education" = "Educ",
-  "Finance & Insurance" = "Finance",
-  "Healthcare" = "Health",
-  "Information" = "Info",
-  "Management" = "Mgmt",
-  "Manufacturing" = "Manuf",
-  "Mining" = "Mining",
-  "Professional Services" = "Prof",
-  "Real Estate" = "RealEst",
-  "Retail Trade" = "Retail",
-  "Transportation" = "Trans",
-  "Utilities" = "Util",
-  "Wholesale Trade" = "Whole",
-  "Other Services" = "Other"
-)
-models <- unique(combined_table$model_type)
-model_abbrev <- c(
-  "OSHA Violations (Binary)" = "OSHA Binary Model",
-  "Wage & Hour Violations (Binary)" = "WH Binary Model",
-  "Accident Rate (Binary)" = "Accident Binary Model",
-  "OSHA Violations (Continuous)" = "OSHA Continuous Model",
-  "Wage & Hour Violations (Continuous)" = "WH Continuous Model",
-  "Accident Rate (Continuous)" = "Accident Continuous Model"
-)
-all_cols <- names(combined_table)
-regions <- setdiff(all_cols, "model_type")
-all_results <- list()
-for(model in models) {
-  model_data <- combined_table[combined_table$model_type == model, ]
-  for(region in regions) {
-    industries <- rownames(model_data)
-    coefs_raw <- model_data[[region]]
-    industries_clean <- gsub("^[^.]+\\.", "", industries)
-    coefs_numeric <- as.numeric(gsub("\\*", "", coefs_raw))
-    has_sig <- grepl("\\*", coefs_raw)
-    df <- data.frame(
-      industry = industries_clean,
-      coef = coefs_numeric,
-      sig = has_sig,
-      coef_original = coefs_raw,  # Keep original with asterisks
-      stringsAsFactors = FALSE
-    )
-    df <- df[!is.na(df$coef), ]
-    if(nrow(df) == 0) next
-    mpi_idx <- which.max(df$coef)
-    mpi_ind <- df$industry[mpi_idx]
-    mpi_coef <- df$coef[mpi_idx]
-    mpi_sig <- df$sig[mpi_idx]
-    mpi_abbr <- ifelse(mpi_ind %in% names(industry_abbrev), 
-                       industry_abbrev[mpi_ind], 
-                       mpi_ind)
-    mpi_str <- sprintf("%s (%.2f%s)", mpi_abbr, mpi_coef, ifelse(mpi_sig, "*", ""))
-    mni_idx <- which.min(df$coef)
-    mni_ind <- df$industry[mni_idx]
-    mni_coef <- df$coef[mni_idx]
-    mni_sig <- df$sig[mni_idx]
-    mni_abbr <- ifelse(mni_ind %in% names(industry_abbrev), 
-                       industry_abbrev[mni_ind], 
-                       mni_ind)
-    mni_str <- sprintf("%s (%.2f%s)", mni_abbr, mni_coef, ifelse(mni_sig, "*", ""))
-    lri_idx <- which.max(abs(df$coef))
-    lri_ind <- df$industry[lri_idx]
-    lri_coef <- df$coef[lri_idx]
-    lri_sig <- df$sig[lri_idx]
-    lri_abbr <- ifelse(lri_ind %in% names(industry_abbrev), 
-                       industry_abbrev[lri_ind], 
-                       lri_ind)
-    lri_str <- sprintf("%s (%.2f%s)", lri_abbr, lri_coef, ifelse(lri_sig, "*", ""))
-    nri_idx <- which.min(abs(df$coef))
-    nri_ind <- df$industry[nri_idx]
-    nri_coef <- df$coef[nri_idx]
-    nri_sig <- df$sig[nri_idx]
-    nri_abbr <- ifelse(nri_ind %in% names(industry_abbrev), 
-                       industry_abbrev[nri_ind], 
-                       nri_ind)
-    nri_str <- sprintf("%s (%.2f%s)", nri_abbr, nri_coef, ifelse(nri_sig, "*", ""))
-    sig_df <- df[df$sig == TRUE, ]
-    if(nrow(sig_df) > 0) {
-      msi_idx <- which.max(abs(sig_df$coef))
-      msi_ind <- sig_df$industry[msi_idx]
-      msi_coef <- sig_df$coef[msi_idx]
-      msi_abbr <- ifelse(msi_ind %in% names(industry_abbrev), 
-                         industry_abbrev[msi_ind], 
-                         msi_ind)
-      msi_dir <- ifelse(msi_coef > 0, "Pos", "Neg")
-      msi_str <- sprintf("%s (%s)", msi_abbr, msi_dir)
-    } else {
-      msi_str <- "None ()"
-    }
-    key <- paste(model, region, sep = "___")
-    model_abbr_name <- ifelse(model %in% names(model_abbrev), 
-                               model_abbrev[model], 
-                               model)
-    all_results[[key]] <- list(
-      Model = model_abbr_name,
-      Region = region,
-      MPI = mpi_str,
-      MNI = mni_str,
-      LRI = lri_str,
-      NRI = nri_str,
-      MSI = msi_str
-    )
-  }
-}
-results_df <- do.call(rbind, lapply(all_results, function(x) {
-  data.frame(
-    Model = x$Model,
-    Region = x$Region,
-    MPI = x$MPI,
-    MNI = x$MNI,
-    LRI = x$LRI,
-    NRI = x$NRI,
-    MSI = x$MSI,
-    stringsAsFactors = FALSE
+binary_interactions$industry_name <- industry_names[binary_interactions$industry]
+binary_interactions <- binary_interactions %>%
+  mutate(
+    direction = case_when(
+      coefficient > 0 & significant ~ "Positive",
+      coefficient < 0 & significant ~ "Negative",
+      TRUE ~ "Null"
+    ),
+    direction = factor(direction, levels = c("Negative", "Null", "Positive")),
+    plot_y = case_when(
+      direction == "Positive" ~ 1,
+      direction == "Negative" ~ -1,
+      TRUE ~ 0
+    ),
+    symbol = case_when(
+      direction == "Positive" ~ "+", 
+      direction == "Negative" ~ "\u2212", 
+      TRUE ~ "\u2022"  
+    ),
+    outcome = case_when(
+      outcome == "labor_binary" ~ "OSHA Violations",
+      outcome == "wh_binary" ~ "Wage & Hour Violations",
+      outcome == "acc_binary" ~ "Accidents"
+    ),
+    shade = as.integer(factor(industry_name)) %% 2 == 0
   )
-}))
-rownames(results_df) <- NULL
-metrics <- c("MPI", "MNI", "LRI", "NRI", "MSI")
-final_table3 <- data.frame()
-unique_models <- unique(results_df$Model)
-for(model in unique_models) {
-  model_data <- results_df[results_df$Model == model, ]
-  for(i in 1:length(metrics)) {
-    row_data <- data.frame(
-      Model = model,
-      Metric = metrics[i],
-      stringsAsFactors = FALSE
-    )
-    for(region in regions) {
-      region_data <- model_data[model_data$Region == region, ]
-      if(nrow(region_data) > 0) {
-        row_data[[region]] <- region_data[[metrics[i]]]
-      } else {
-        row_data[[region]] <- NA
-      }
-    }
-    
-    final_table3 <- rbind(final_table3, row_data)
-  }
-}
-rownames(final_table3) <- NULL
-print(final_table3)
-write.csv(final_table3, file.path(output_folder, "final_interaction_table.csv"), row.names = FALSE)
+shade_df <-binary_interactions %>% distinct(industry_name, shade) %>% filter(shade)
+region_colors <- c(
+  "New England" = "#1D70A2",
+  "Mid-Atlantic" = "#558564",
+  "Southeast" = "#8E3B46",
+  "Plains" = "#C191A1",
+  "Mountain West" = "#02394A",
+  "Southwest" = "#424B54",
+  "Great Lakes" = "#CF9893",
+  "Pacific" = "#81C14B"
+)
+binary_interactions$region <- factor(binary_interactions$region, levels = names(region_colors))
+test <- ggplot(binary_interactions, aes(x = region, y = plot_y, color = region)) +
+  geom_rect(data = shade_df, aes(x = NULL, y = NULL, xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf), fill = "grey90",  inherit.aes = FALSE) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "grey", linewidth = 0.3) +
+  geom_text(aes(label = symbol), position = position_jitter(width = 0.05, height = 0.05, seed = 123), size = 5, fontface = "bold") +
+  scale_color_manual(values = region_colors, guide = "none") +
+  scale_shape_identity() +
+  scale_color_manual(values = region_colors, guide = "none") +
+  scale_fill_manual(values = region_colors, na.value = "white", guide = "none") +
+  scale_y_continuous(limits = c(-1.5, 1.5), breaks = c(-1, 0, 1), labels = c("Negative", "Null", "Positive"), expand = expansion(mult = 0.2), position = "right") +
+  facet_grid(rows = vars(industry_name), cols = vars(outcome), scales = "fixed", switch = "y") +
+  labs(x = NULL, y = NULL, title = "Binary WAV Varaible Outcomes: Industry-Region Interactions", subtitle = "Above line = Positive and CrI > 0 | At line = Null | Below line = Negative and CrI < 0") +
+  theme_minimal(base_size = 6) +
+  theme(
+    text = element_text(family = "Serif"),
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank(),
+    panel.grid.major.x = element_blank(),
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor = element_blank(),
+    strip.text.y.left = element_text(angle = 0, hjust = 0, size = 10),
+    strip.text.x = element_text(size = 8, face = "bold"),
+    panel.spacing.x = unit(4, "pt"),
+    panel.spacing.y = unit(4, "pt"),
+    panel.border = element_rect(color = "black", fill = NA, linewidth = 0.3),
+    legend.position = "none"
+  )
+ggsave(filename = file.path(output_folder, "binary_interactions_plot_test.png"), plot = test, width = 13, height = 8, dpi = 400)
+
+
+continuous_interactions$industry_name <- industry_names[continuous_interactions$industry]
+continuous_interactions <- continuous_interactions %>%
+  mutate(
+    direction = case_when(
+      coefficient > 0 & significant ~ "Positive",
+      coefficient < 0 & significant ~ "Negative",
+      TRUE ~ "Null"
+    ),
+    direction = factor(direction, levels = c("Negative", "Null", "Positive")),
+    plot_y = case_when(
+      direction == "Positive" ~ 1,
+      direction == "Negative" ~ -1,
+      TRUE ~ 0
+    ),
+    symbol = case_when(
+      direction == "Positive" ~ "+", 
+      direction == "Negative" ~ "\u2212", 
+      TRUE ~ "\u2022"  
+    ),
+    outcome = case_when(
+      outcome == "vio_rate" ~ "OSHA Violations",
+      outcome == "wh_rate_pe" ~ "Wage & Hour Violations",
+      outcome == "acc_rate" ~ "Accidents"
+    ),
+    shade = as.integer(factor(industry_name)) %% 2 == 0
+  )
+continuous_interactions$region <- factor(continuous_interactions$region, levels = names(region_colors))
+test_2 <- ggplot(continuous_interactions, aes(x = region, y = plot_y, color = region)) +
+  geom_rect(data = shade_df, aes(x = NULL, y = NULL, xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf), fill = "grey90",  inherit.aes = FALSE) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "grey", linewidth = 0.3) +
+  geom_text(aes(label = symbol), position = position_jitter(width = 0.05, height = 0.05, seed = 123), size = 5, fontface = "bold") +
+  scale_color_manual(values = region_colors, guide = "none") +
+  scale_shape_identity() +
+  scale_color_manual(values = region_colors, guide = "none") +
+  scale_fill_manual(values = region_colors, na.value = "white", guide = "none") +
+  scale_y_continuous(limits = c(-1.5, 1.5), breaks = c(-1, 0, 1), labels = c("Negative", "Null", "Positive"), expand = expansion(mult = 0.2), position = "right") +
+  facet_grid(rows = vars(industry_name), cols = vars(outcome), scales = "fixed", switch = "y") +
+  labs(x = NULL, y = NULL, title = "Continuous WAV Varaible Outcomes: Industry-Region Interactions", subtitle = "Above line = Positive and CrI > 0 | At line = Null | Below line = Negative and CrI < 0") +
+  theme_minimal(base_size = 6) +
+  theme(
+    text = element_text(family = "Serif"),
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank(),
+    panel.grid.major.x = element_blank(),
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor = element_blank(),
+    strip.text.y.left = element_text(angle = 0, hjust = 0, size = 10),
+    strip.text.x = element_text(size = 8, face = "bold"),
+    panel.spacing.x = unit(4, "pt"),
+    panel.spacing.y = unit(4, "pt"),
+    panel.border = element_rect(color = "black", fill = NA, linewidth = 0.3),
+    legend.position = "none"
+  )
+ggsave(filename = file.path(output_folder, "continuous_interactions_plot_test.png"), plot = test_2, width = 12, height = 8, dpi = 300)
+
+
+legend_df <- data.frame(
+  region = factor(names(region_colors), levels = names(region_colors))
+)
+legend_df$x <- as.numeric(legend_df$region)
+n <- length(region_colors)
+
+
+legend <- ggplot() +
+  annotate("rect", xmin = 0.3, xmax = n + 0.7, ymin = -0.6, ymax = 0.6, fill = "grey90", color = NA) +
+  annotate("segment", x = 0.3, xend = n + 0.7, y = 0, yend = 0, color = "grey40", linewidth = 0.3, linetype = "dashed") +
+  annotate("rect", xmin = 0.3, xmax = n + 0.7, ymin = -0.6, ymax = 0.6, fill = NA, color = "black", linewidth = 0.3) +
+  geom_text(data = legend_df, aes(x = x, y = 0, label = "\u2022", color = region), size = 10, fontface = "bold") +
+  geom_text(data = legend_df, aes(x = x, y = -0.7, label = region, color = region), size = 3, fontface = "bold", angle = 45, family = "Serif", hjust = 1) +
+  annotate("text", x = (n+1)/2, y = -1.15, label = "Notes: Industries appear in same order as in the main plots. \n Symbols designates direction of effect (+/\u2212) and color designates region", size = 4, fontface = "bold", family = "Serif") +
+  scale_color_manual(values = region_colors, guide = "none") +
+  scale_y_continuous(limits = c(-1.2, 0.8)) +
+  scale_x_continuous(limits = c(0, n + 1), breaks = NULL) +
+  coord_cartesian(clip = "off") +
+  theme_void() +
+  theme(legend.position = "none", text = element_text(family = "Serif"), panel.border = element_rect(color = "black", fill = NA, linewidth = 0.3)) 
+ggsave(filename = file.path(output_folder, "binary_interactions_legend.png"), plot = legend, width = 5, height = 4, dpi = 400)
+
+
+osha_interactions_table <- create_model_table(osha_interactions)
+osha_interactions_table$industry_name <- industry_names[osha_interactions_table$industry]
+write.csv(osha_interactions_table, file = file.path(output_folder, "osha_interactions_table.csv"), row.names = FALSE)
+
+
+wh_interactions_table <- create_model_table(wh_interactions)
+wh_interactions_table$industry_name <- industry_names[wh_interactions_table$industry]
+write.csv(wh_interactions_table, file = file.path(output_folder, "wh_interactions_table.csv"), row.names = FALSE)
+
+
+acc_interactions_table <- create_model_table(acc_interactions)
+acc_interactions_table$industry_name <- industry_names[acc_interactions_table$industry]
+write.csv(acc_interactions_table, file = file.path(output_folder, "acc_interactions_table.csv"), row.names = FALSE)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

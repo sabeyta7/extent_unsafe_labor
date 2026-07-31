@@ -25,6 +25,7 @@ run_interaction_models <- function(industry_vars, outcome_var, model_data, outco
   # plus the interaction coef.
 
   results <- list()
+  model_data$region_8 <- as.factor(model_data$region_8)
   
   if (outcome_type == "binary") {
     family_type <- "binomial"
@@ -49,63 +50,65 @@ run_interaction_models <- function(industry_vars, outcome_var, model_data, outco
   total_n <- nrow(model_data)
   
   region_counts <- model_data %>%
-    group_by(region_8) %>%
-    summarize(
-      region_n = n(),
-      outcome_n = sum(!!sym(outcome_var) > 0, na.rm = TRUE)
-    )
+    group_by(region_8) %>% summarize(region_n = n(),outcome_n = sum(!!sym(outcome_var) > 0, na.rm = TRUE))
   
   for(industry_var in industry_vars) {
     model_formula <- as.formula(paste0(
       outcome_var, " ~ ", industry_var, " * region_8 + insp_rate + ", 
       "f(", zip_id, ", model = 'bym', graph = ", model_adj, ")"
     ))
-    
+
+    region_levels <- levels(model_data$region_8)[-1]
+    lincomb_list <- list()
+    lincomb_list[["reference_region_effect"]] <- inla.make.lincomb(setNames(list(1), industry_var))
+    for (region in region_levels) {
+      lincomb_name <- paste0("interaction_", region)
+      interaction_term <- paste0(industry_var, ":region_8", region)
+      lincomb_list[[lincomb_name]] <- inla.make.lincomb(setNames(list(1,1), c(industry_var, interaction_term)))
+    }
+    all_lincomb <- do.call(c, lincomb_list)
+
     interaction_model <- inla(
       model_formula,
       data = model_data,
       family = family_type,
       control.predictor = list(compute = TRUE),
-      control.compute = list(dic = TRUE, waic = TRUE)
+      control.compute = list(dic = TRUE, waic = TRUE),
+      lincomb = all_lincomb
     )
     
-    fixed_effects <- interaction_model$summary.fixed
-    interaction_pattern <- paste0(industry_var, ":region_8")
-    interaction_vars <- rownames(fixed_effects)[grep(interaction_pattern, rownames(fixed_effects))]
+    lincomb_results <- interaction_model$summary.lincomb.derived
     
-    if(length(interaction_vars) > 0) {
-      interactions <- data.frame(
-        industry = industry_var,
-        interaction = interaction_vars,
-        coefficient = fixed_effects[interaction_vars, "mean"],
-        lower_ci = fixed_effects[interaction_vars, "0.025quant"],
-        upper_ci = fixed_effects[interaction_vars, "0.975quant"],
-        significant = (fixed_effects[interaction_vars, "0.025quant"] > 0) | 
-                   (fixed_effects[interaction_vars, "0.975quant"] < 0),
-        outcome = outcome_var
-      )
-      
-      interactions$region <- gsub(paste0(industry_var, ":region_8"), "", interactions$interaction)
-      main_effect <- fixed_effects[industry_var, "mean"]
-      interactions$total_effect <- main_effect + interactions$coefficient
-      
-      results[[industry_var]] <- interactions
+
+    interactions_df <- data.frame(
+      industry = industry_var,
+      lc_name = rownames(lincomb_results),
+      interaction = c(NA, paste0(industry_var, ":region_8", region_levels)),
+      region = c(levels(model_data$region_8)[1], region_levels),
+      coefficient = lincomb_results[, "mean"],
+      lower_ci = lincomb_results[, "0.025quant"],
+      upper_ci = lincomb_results[, "0.975quant"],
+      outcome = outcome_var
+    )
+
+    interactions_df$significant <- (interactions_df$lower_ci > 0) | (interactions_df$upper_ci < 0)
+    interactions_df$ref_region <- interactions_df$lc_name == "reference_region_effect"
+    results[[industry_var]] <- interactions_df
     }
-  }
-  
-  combined_results <- bind_rows(results)
-  
-  attr(combined_results, "sample_size") <- list(
-    total = total_n,
-    outcome_var = outcome_var,
-    outcome_type = outcome_type
+
+ combined_results <- bind_rows(results)
+
+ attr(combined_results, "sample_size") <- list(
+ total = total_n,
+ outcome_var = outcome_var,
+ outcome_type = outcome_type
   )
-  
-  return(combined_results)
+   
+ return(combined_results)
 }
 
 #------Making interaction table
-create_model_table <- function(interaction_data, violation_type, model_type){
+create_model_table <- function(interaction_data){
 
   # This function creates a table of the interaction results for a given violation type and model type. It takes in:
   # ---------------
@@ -116,18 +119,22 @@ create_model_table <- function(interaction_data, violation_type, model_type){
   # The function filters the interaction data based on the specified violation type and model type, then reshapes the data to create a wide-format table.
   # It returns a data frame where rows are industries, columns are regions, and cell values are the total effects with significance indicated by an asterisk.
 
-  subset_data <- interaction_data %>%
-    filter(violation_type == !!violation_type, model_type == !!model_type)
+  data_split <- interaction_data%>%mutate(
+    cell_str = paste0(round(coefficient, 2), ifelse(significant, " *", ""),
+    "\n", "(", round(lower_ci, 2), ", ", round(upper_ci, 2), ")"))
 
-  subset_data <- subset_data%>%mutate(coef_sig = ifelse(significant == TRUE, paste0(as.character(round(total_effect, 2)), "*"), as.character(round(total_effect, 2))))
+  wide_data <- data_split %>%
+    dplyr::select(industry, region, model_type, cell_str) %>%
+    pivot_wider(names_from = c(region, model_type), values_from = cell_str)
+  
 
-  wide_data <- subset_data %>%
-    dplyr::select(industry_name, region, coef_sig) %>%
-    pivot_wider(names_from = region, values_from = coef_sig)
-
-  table_data <- as.data.frame(wide_data[,-1])
-  rownames(table_data)<-wide_data$industry_name
-
-  return(table_data)
+  # full_wide <- bind_rows(coef_wide, ci_wide) %>%
+  #   mutate(row = factor(row, levels = c("coef", "ci"))) %>%
+  #   arrange(industry, row) %>%
+  #   group_by(industry) %>%
+  #   mutate(industry = ifelse(row == "coef", industry, "")) %>%
+  #   ungroup() %>%
+  #   dplyr::select(-row) %>%
+  #   as.data.frame()
+  return(as.data.frame(wide_data))
 }
-
